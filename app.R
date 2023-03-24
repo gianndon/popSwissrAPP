@@ -8,12 +8,12 @@ ui <- function(request) {
       tags$link(rel = "stylesheet", type = "text/css", href = "style.css")),
     
     #Navbar
-    navbarPage("Swisscon Portfolio", id ="navbar",
-               tabPanel("Übersicht"                      ),
-               tabPanel("Investment", 
-                        tabsetPanel(
+    navbarPage("Swisscon Portfolio", id="navbar", fluid=TRUE, 
+               tabPanel("Übersicht"  ),
+               tabPanel("Investment",  
+                        tabsetPanel(id="tabsetPanel",
                           tabPanel("Rendite Maximieren / Risiko Minimieren"),
-                          tabPanel("Minimum Varianz Portfolio", id="navbar"),
+                          tabPanel("Minimum Varianz Portfolio"),
                           tabPanel("Tangentialportfolio"),
                           tabPanel("Kennzahlen")
                         )),
@@ -23,6 +23,7 @@ ui <- function(request) {
                           tabPanel("Kontakt")
                         ))
     ),
+    titlePanel(h2("Test")),
     plotOutput("plot"),
     sliderInput("n", "Number of observations", 1, nrow(faithful), 100),
     bookmarkButton()

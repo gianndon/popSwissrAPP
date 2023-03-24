@@ -1,7 +1,45 @@
-.navbar {
-  color: green;
+body {
+  background-color: #e3f4fa;
 }
 
+#navbar {
+  background-color: #99e2ff ;
+  color: #99e2ff;
+}
+/*
+#tabsetPanel:active{
+  background-color: #99e2ff !important;
+}*/
+
 h2 {
-        font-family: 'Yusei Magic', sans-serif;
+  color:green;
+  font-family: 'Yusei Magic', sans-serif;
       }
+      
+
+
+body > div > nav .nav.navbar-nav {
+            float: right;
+            
+            
+        }
+
+
+/* Navbar Title*/
+.navbar .navbar-brand{
+                       color: #2b8cc4;
+                      }
+/* Navbar color */
+.navbar-static-top {
+  background-color: #99e2ff ;
+  
+}
+
+.navbar-nav li a:hover, .navbar-nav > .active > a {
+color: #fff !important;
+
+background-color:#2b8cc4 !important;
+}
+
+
+
