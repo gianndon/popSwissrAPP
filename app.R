@@ -2,9 +2,12 @@ library(shiny)
 library(popSwissr)
 library(remotes)
 library(PortfolioAnalytics)
+library(plotly)
+library(quantmod)
+library(highcharter)
 
 # Define the assets and their expected returns and covariance matrix
-assets <- c("smi", "gold", "bitchoin", "ch_gov_bonds", "us_gov_bonds", "sp500", "usd_chf")
+assets <- c("smi", "gold", "bitcoin", "ch_gov_bonds", "us_gov_bonds", "sp500", "usd_chf")
 returns <- c(0.06, 0.01, 0.2, 0.02, 0.03, 0.08, 0.01)
 covariance <- matrix(c(0.04, -0.01, 0.05, 0.01, 0.02, 0.03, -0.01,
                        -0.01, 0.03, 0.02, 0.01, -0.02, -0.01, 0.03,
@@ -13,6 +16,8 @@ covariance <- matrix(c(0.04, -0.01, 0.05, 0.01, 0.02, 0.03, -0.01,
                        0.02, -0.02, -0.01, 0.02, 0.05, 0.01, -0.01,
                        0.03, -0.01, 0.04, -0.02, 0.01, 0.09, -0.02,
                        -0.01, 0.03, -0.02, 0.01, -0.01, -0.02, 0.04), nrow = 7, ncol = 7)
+
+smi_data <- getSymbols("^SSMI", auto.assign = FALSE)
 
 # Define the user interface
 ui <- function(request) {
@@ -33,7 +38,16 @@ ui <- function(request) {
                         column(3,numericInput("usd_chf", "USD/CHF Devisen [CHF]", value = 0)),
                         fluidRow(),
                         h2("Portfolio"),
-                        ),
+                        fluidRow(),
+                        titlePanel("Swiss Market Index (SMI)"),
+                        sidebarLayout(
+                          sidebarPanel(
+                            selectInput("period", "Select period:",
+                                        choices = c("1 day", "1 week", "1 month", "1 year", "5 years"))
+                          ),
+                          
+                            plotOutput("smi_plot")
+                          )),
                tabPanel("Investment",  
                         tabsetPanel(id="tabsetPanel",
                           tabPanel("Rendite Maximieren / Risiko Minimieren"),
@@ -52,15 +66,18 @@ ui <- function(request) {
                           tabPanel("Kontakt")
                         ))
     ),
-    titlePanel(h2("Test")),
-    plotOutput( "plot"),
-    sliderInput("n", "Number of observations", 1, nrow(faithful), 100),
-    bookmarkButton()
+    #titlePanel(h2("Test")),
+    #plotOutput( "plot"),
+    #sliderInput("n", "Number of observations", 1, nrow(faithful), 100),
+    #bookmarkButton()
   )
 }
 
 # Define the server logic
 server <- function(input, output, session) {
+  
+
+# Eingabe aktuelles Portfolio ---------------------------------------------
   observeEvent(input$submit, {
     smi <- input$SMI
     ch_gov_bonds <- input$Ch-Staatsanleihen
@@ -71,36 +88,48 @@ server <- function(input, output, session) {
     usd_chf <- input$usd-chf-devisen
     
   })
+  
+
+# Plot Testfunktion -------------------------------------------------------
+
   output$plot <- renderPlot({
     #change color of plot background
     par(bg = "#f3f4fa")
     f(x=input$n)
     
   })
-  observeEvent(input$optimize_button,{
-    # Create a portfolio object
-my_portfolio <- portfolio.spec(assets)
+ 
+  
 
-# Set the expected returns for each asset
-setTargetReturn(my_portfolio) <- mean(returns)
+# SMI Plot Slider Daten ---------------------------------------------------
 
-# Add constraints (e.g. no short-selling)
-add.constraint(my_portfolio, type = "longonly")
-
-# Add the covariance matrix of asset returns
-setcov(my_portfolio) <- cov_matrix
-
-# Calculate the minimum variance portfolio
-min_var_portfolio <- optimize.portfolio(
-  my_portfolio,
-  portfolio.optimization = "minvariance",
-  trace = FALSE
-)
-
-# Print the weights of the minimum variance portfolio
-print(min_var_portfolio$weights)
+  smi_data_reactive <- reactive({
+    period <- input$period
+    
+    # Get start and end dates based on period
+    start_date <- Sys.Date() - switch(period,
+                                      "1 day" = 1,
+                                      "1 week" = 7,
+                                      "1 month" = 30,
+                                      "1 year" = 365,
+                                      "5 years" = 5*365)
+    end_date <- Sys.Date()
+    
+    # Filter smi_data based on start and end dates
+    smi_data_filtered <- smi_data[paste(start_date, "/", end_date, sep = "")]
+    
+    # Return filtered smi_data
+    return(smi_data_filtered)
   })
+  
+  output$smi_plot <- renderPlot({
+    # Plot smi_data based on selected period
+    chartSeries(smi_data_reactive(), TA = NULL)
+    
+    'stockChart(smi_data_reactive(), type = "line", name = symbol)'
+  })
+  
+  
 }
-
 enableBookmarking(store = "url")
 shinyApp(ui, server)

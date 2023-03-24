@@ -12,8 +12,9 @@ body {
 }*/
 
 h2 {
-  color:green;
+  color:#5b8cc4;
   font-family: 'Yusei Magic', sans-serif;
+  display: block;
       }
       
 
@@ -42,4 +43,6 @@ background-color:#2b8cc4 !important;
 }
 
 
-
+#shiny-plot {
+  background-color: green;
+}
