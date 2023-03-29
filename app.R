@@ -29,26 +29,31 @@ ui <- function(request) {
     #Navbar
     navbarPage("Swisscon Portfolio", id="navbar", fluid=TRUE, 
                tabPanel("Übersicht",
-                        column(3,numericInput("smi", "SMI Index [CHF]", value = 0)),
-                        column(3,numericInput("ch_gov_bonds", "CH-Staatsanleihen [CHF]", value = 0)),
-                        column(3,numericInput("gold", "Gold [CHF]", value = 0)),
-                        column(3,numericInput("bitcoin", "Bitcoin [CHF]", value = 0)),
-                        column(3,numericInput("us_gov_bonds", "US Staatsanleihen [CHF]", value = 0)),
-                        column(3,numericInput("sp500", "SP500 [CHF]", value = 0)),
-                        column(3,numericInput("usd_chf", "USD/CHF Devisen [CHF]", value = 0)),
-                        fluidRow(),
-                        h2("Portfolio"),
-                        fluidRow(),
-                        titlePanel("Swiss Market Index (SMI)"),
-                        sidebarLayout(
-                          sidebarPanel(
-                            selectInput("period", "Select period:",
-                                        choices = c("1 day", "1 week", "1 month", "1 year", "5 years"))
+                        tabsetPanel(
+                          tabPanel("Portfolio",
+                                   h2("Portfolio"),
+                                   column(3,numericInput("smi", "SMI Index [CHF]", value = 0)),
+                                   column(3,numericInput("ch_gov_bonds", "CH-Staatsanleihen [CHF]", value = 0)),
+                                   column(3,numericInput("gold", "Gold [CHF]", value = 0)),
+                                   column(3,numericInput("bitcoin", "Bitcoin [CHF]", value = 0)),
+                                   column(3,numericInput("us_gov_bonds", "US Staatsanleihen [CHF]", value = 0)),
+                                   column(3,numericInput("sp500", "SP500 [CHF]", value = 0)),
+                                   column(3,numericInput("usd_chf", "USD/CHF Devisen [CHF]", value = 0)),
+                                   fluidRow()),
+                          tabPanel("Übersicht",
+                                   fluidRow(),
+                                   titlePanel("Swiss Market Index (SMI)"),
+                                   sidebarLayout(
+                                     sidebarPanel(
+                                       selectInput("period", "Select period:",
+                                                   choices = c("1 day", "1 week", "1 month", "1 year", "5 years"))
+                                     ),
+                                     
+                                     plotOutput("smi_plot")
+                                   )))
                           ),
-                          
-                            plotOutput("smi_plot")
-                          )),
-               tabPanel("Investment",  
+                        
+                      tabPanel("Investment",  
                         tabsetPanel(id="tabsetPanel",
                           tabPanel("Rendite Maximieren / Risiko Minimieren"),
                           tabPanel("Minimum Varianz Portfolio",
