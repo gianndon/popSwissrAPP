@@ -76,13 +76,15 @@ ui <- function(request) {
                                    #sidebarLayout(
                                      #sidebarPanel(
                                        # selectInput("period", "Select period:",
-                                          #         choices = c("1 day", "1 week", "1 month", "1 year", "5 years"))
+                                          #         choices = c("1 day", "1 week", "1 month", "1 year", "5 years", "10 years"))
                                        column(6, selectInput("assets", "Select Assets:", choices = c("^SSMI", "USDCHF=X", "^GSPC"), selected = c("^SSMI", "^GSPC"), multiple = TRUE)),
                                        column(6,selectInput("period", "Select period:",
-                                                              choices = c("1 day", "1 week", "1 month", "1 year", "5 years"), selected = "1 month")),
+                                                              choices = c("1 day", "1 week", "1 month", "1 year", "5 years", "10 years"), selected = "1 month")),
                                        #plotOutput("stockPlot")
-                                       plotOutput("smi_plot")
-                                       ),
+                                       verbatimTextOutput("click_kursuebersicht2"),
+                                       plotOutput("smi_plot", click="click_kursuebersicht1"),
+                                       fluidRow()
+                                        ),
                                     
                                      #plotOutput("smi_plot")
                                    )
@@ -153,7 +155,8 @@ start_date_selector <- reactive({
                                     "1 week" = 7,
                                     "1 month" = 30,
                                     "1 year" = 365,
-                                    "5 years" = 5*365)
+                                    "5 years" = 5*365,
+                                    "10 years" = 10*365)
   return(start_date)
 
   })
@@ -168,7 +171,8 @@ start_date_selector <- reactive({
                                       "1 week" = 7,
                                       "1 month" = 30,
                                       "1 year" = 365,
-                                      "5 years" = 5*365)
+                                      "5 years" = 5*365,
+                                      "10 years"=10*365)
     end_date <- Sys.Date()
     
     # Filter smi_data based on start and end dates
@@ -177,6 +181,19 @@ start_date_selector <- reactive({
     # Return filtered smi_data
     return(smi_data_filtered)
   })
+  
+
+  #Output wenn klicken in Kursübersicht
+  output$click_kursuebersicht2 = renderPrint({
+    datum <- as.character(as.Date(input$click_kursuebersicht1$x))
+    datum1 <- as.character(as.Date(datum)+1)
+    smi <- getSymbols("^SSMI", from = datum, to= datum1, auto.assign = FALSE )
+    c("Datum" = datum
+      , "SMI" = round(smi[datum,"SSMI.Adjusted"],3)
+      )
+  })
+  
+  
   
   output$smi_plot <- renderPlot({
     # Set background color to transparent
@@ -209,14 +226,22 @@ start_date_selector <- reactive({
     # Filter data based on selected assets
     data <- stock_data[stock_data$asset %in% input$assets, ]
     
-    # Create plot
-    ggplot(data, aes(x = date, y = price, color = asset)) +
+    # Create ggplot object
+    gg <- ggplot(data, aes(x = date, y = price, color = asset)) +
       geom_line()+
       theme(panel.background = element_blank(),
             panel.grid.major = element_line(color = "gray", linetype = "dashed"),
             panel.grid.minor = element_blank(),
             plot.background = element_rect(fill = "transparent", color = NA))
-  }, bg="transparent")
+    gg
+    
+    # gg_ly <- ggplotly(gg)
+    # gg_ly
+  }, bg="transparent"  )
+  
+  
+  
+  
   
   #create Donut Plot of portfolio
   output$donut_index <- renderPlot({
