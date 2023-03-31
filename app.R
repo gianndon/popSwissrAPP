@@ -38,7 +38,7 @@ abbreviate2 <- function(x) {
 
 # Specify the assets and date range
 assets <- c("^SSMI", "USDCHF=X", "^GSPC")
-
+smi <- NULL;
 
 
 
@@ -185,12 +185,19 @@ start_date_selector <- reactive({
 
   #Output wenn klicken in Kursübersicht
   output$click_kursuebersicht2 = renderPrint({
+    if(is.null(input$click_kursuebersicht1$x)){
+      datum <- Sys.Date()
+      datum1 <- datum+1
+    }
+    else{ 
     datum <- as.character(as.Date(input$click_kursuebersicht1$x))
     datum1 <- as.character(as.Date(datum)+1)
+    }
     smi <- getSymbols("^SSMI", from = datum, to= datum1, auto.assign = FALSE )
     c("Datum" = datum
       , "SMI" = round(smi[datum,"SSMI.Adjusted"],3)
       )
+    
   })
   
   
@@ -233,6 +240,11 @@ start_date_selector <- reactive({
             panel.grid.major = element_line(color = "gray", linetype = "dashed"),
             panel.grid.minor = element_blank(),
             plot.background = element_rect(fill = "transparent", color = NA))
+    #if(input$click_kursuebersicht1$x %in% smi[1,]){
+      # gg <- gg +
+      #   geom_vline(xintercept = as.numeric("2023-03-28"),size=10, colour="red")
+    #}
+    
     gg
     
     # gg_ly <- ggplotly(gg)
