@@ -11,6 +11,7 @@ library(scales)
 library(ggrepel)
 library(tidyverse)
 library(TTR)
+library(RColorBrewer)
 
 #function to abbreviate numbers
 abbreviate2 <- function(x) {
@@ -37,8 +38,12 @@ abbreviate2 <- function(x) {
 #                        -0.01, 0.03, -0.02, 0.01, -0.01, -0.02, 0.04), nrow = 7, ncol = 7)
 
 # Specify the assets and date range
-assets <- c("^SSMI", "USDCHF=X", "^GSPC")
-smi <- NULL;
+assets <- c("^SSMI", "USDCHF=X", "^GSPC", "GC=F", "BTC-USD", "CSBGC0.SW", "^TNX")
+                #c("SMI", "USD / CHF", "S&P500", " ", "Bitcoin USD", " ", " ", " "))
+assets1 <- c("SMI"="^SSMI", "USD/CHF"="USDCHF=X", "S&P500"="^GSPC", "Gold"="GC=F", "Bitcoin USD"="BTC-USD", "CH Staatsanleihen"="CSBGC0.SW", "US Staatsanleihen"="^TNX")
+
+title <- tags$a(tags$img(src="Swisscon_Logo2.png", height="45px", id="logo"))
+
 
 
 
@@ -49,18 +54,26 @@ smi <- NULL;
 ui <- function(request) {
   
   fluidPage(
+    
     tags$head(
       tags$link(rel = "stylesheet", type = "text/css", href = "style.css")),
     
     #Navbar
-    navbarPage("Swisscon Portfolio", id="navbar", fluid=TRUE, 
+    navbarPage(title=title,
+               id="navbar", fluid=TRUE,
                tabPanel("Übersicht",
                         tabsetPanel(
                           tabPanel("Portfolio",
-                                   h2("Portfolio"),
+                                   mainPanel(
+                                   column(9, h2("Portfolio")),
+                                   column(2,actionButton("new_investment", "Neues Portfolio anlegen")),
+                                   
                                    #create Donut Plot of portfolio
                                    plotOutput("donut_index", height= "65vh"),
-                                   
+                                   br(),
+                                   br(),
+                                   br(),
+                                   br(),
                                    #create input for portfolio with input field
                                    column(3,numericInput("smi", "SMI Index [CHF]", value = 20000)),
                                    column(3,numericInput("ch_gov_bonds", "CH-Staatsanleihen [CHF]", value = 2000)),
@@ -69,15 +82,24 @@ ui <- function(request) {
                                    column(3,numericInput("us_gov_bonds", "US Staatsanleihen [CHF]", value = 5000)),
                                    column(3,numericInput("sp500", "SP500 [CHF]", value = 1000)),
                                    column(3,numericInput("usd_chf", "USD/CHF Devisen [CHF]", value = 9000)),
-                                   fluidRow()),
+                                   column(3, actionButton("load-donut-chart", "Chart aktualisieren")),
+                                   br(),
+                                   br(),
+                                   fluidRow(), 
+                                   width ="100vh")),
+                            
                           tabPanel("Kursübersicht",
+                                   dataTableOutput("test"),
                                    #fluidRow(),
                                    titlePanel("Kursübersicht für SMI, S&P500, Gold,..."),
                                    #sidebarLayout(
                                      #sidebarPanel(
                                        # selectInput("period", "Select period:",
                                           #         choices = c("1 day", "1 week", "1 month", "1 year", "5 years", "10 years"))
-                                       column(6, selectInput("assets", "Select Assets:", choices = c("^SSMI", "USDCHF=X", "^GSPC"), selected = c("^SSMI", "^GSPC"), multiple = TRUE)),
+                                       column(6, selectInput("assets2", "Select Assets:", choices = assets1, 
+                                                             selected = c("^SSMI", "^GSPC"), 
+                                                             multiple = TRUE,
+                                                             )),
                                        column(6,selectInput("period", "Select period:",
                                                               choices = c("1 day", "1 week", "1 month", "1 year", "5 years", "10 years"), selected = "1 month")),
                                        #plotOutput("stockPlot")
@@ -184,74 +206,106 @@ start_date_selector <- reactive({
   
 
   #Output wenn klicken in Kursübersicht
-  output$click_kursuebersicht2 = renderPrint({
+  output$click_kursuebersicht2 <- renderPrint({
     if(is.null(input$click_kursuebersicht1$x)){
-      datum <- Sys.Date()
-      datum1 <- datum+1
+      datum1 <- Sys.Date()
+      datum <- datum1-1
     }
     else{ 
-    datum <- as.character(as.Date(input$click_kursuebersicht1$x))
-    datum1 <- as.character(as.Date(datum)+1)
+    # datum <- as.Date(input$click_kursuebersicht1$x)
+    # datum1 <- as.Date(datum)+1
+      click_pos <- input$click_kursuebersicht1
+      click_date <- index(dataset1())[as.Date(click_pos$x),]
+      click_value <- data[click_date]
     }
-    smi <- getSymbols("^SSMI", from = datum, to= datum1, auto.assign = FALSE )
-    c("Datum" = datum
-      , "SMI" = round(smi[datum,"SSMI.Adjusted"],3)
-      )
-    
+   # smi <- getSymbols("^SSMI", from = datum, to= datum1, auto.assign = FALSE )
+    # c("Datum" = datum
+    #   , "SMI" = round(smi[datum,"SSMI.Adjusted"],3)
+    #   )
+    c("Datum: " = datum, "SMI " = click_value)
+    #print(input$click_kursuebersicht1)
   })
   
+  output$test <- renderDataTable(rownames(dataset1()))
   
-  
-  output$smi_plot <- renderPlot({
-    # Set background color to transparent
-   
+  dataset <- reactive({
     # Plot smi_data based on selected period
-   # chartSeries(smi_data_reactive(), TA = NULL, theme="white")
+    # chartSeries(smi_data_reactive(), TA = NULL, theme="white")
     
     
     
     start_date <- start_date_selector()
-    end_date <- Sys.Date()+1
+    end_date <- Sys.Date()
+    
+    popSwissr::get_data(assets, start_date, end_date)
     
     # Get stock price data
-    stock_data <- do.call(cbind,
-                          lapply(assets, function(x) {
-                            getSymbols(x,
-                                       src = "yahoo",
-                                       from = start_date,
-                                       to = end_date,
-                                       auto.assign = FALSE)[, 6]
-                          }))
+    # do.call(cbind, 
+    #       lapply(assets, function(x) {
+    #         getSymbols(x,
+    #             src = "yahoo",
+    #             from = start_date,
+    #             to = end_date,
+    #             auto.assign = FALSE)[, 6]
+    #                       }))
     
-    # Convert to data frame
-    stock_data <- data.frame(date = index(stock_data), coredata(stock_data))
-    names(stock_data)[-1] <- assets
-    
+    # # Convert to data frame
+    # stock_data <- data.frame(date = index(stock_data), coredata(stock_data))
+    # names(stock_data)[-1] <- assets
+    # 
     # Reshape data
-    stock_data <- stock_data %>%
-      pivot_longer(-date, names_to = "asset", values_to = "price")
-    # Filter data based on selected assets
-    data <- stock_data[stock_data$asset %in% input$assets, ]
+    # stock_data <- stock_data %>%
+    #   pivot_longer(-date, names_to = "asset", values_to = "price")
+    # # Filter data based on selected assets
+    # data <- stock_data[stock_data$asset %in% input$assets, ]
+  })
+  
+  #full dataset with all data
+  dataset1 <- reactive({
+    temp <- dataset()
+    colnames(temp) <- assets
+    temp
+  })
+  
+  #dataset with selected data in Kursübersicht
+  dataset2 <- reactive({
+    temp <- dataset()
+    colnames(temp) <- assets
+    temp
+    
+    # subset data based on selected assets
+    subset_data <- temp[, input$assets2]
+    
+    # return xts object
+    xts(subset_data, order.by = index(temp))
+    
+  })
+  
+  output$smi_plot <- renderPlot({
+    
+    coulours <- brewer.pal(8, "BrBG")
+    plot.xts(dataset2(), bg="transparent", col=coulours, col.lab="gold2", labels.col="navyblue", cex.axis=1.3 )
+    addLegend("topleft", lty=1, lwd=2)
     
     # Create ggplot object
-    gg <- ggplot(data, aes(x = date, y = price, color = asset)) +
-      geom_line()+
-      theme(panel.background = element_blank(),
-            panel.grid.major = element_line(color = "gray", linetype = "dashed"),
-            panel.grid.minor = element_blank(),
-            plot.background = element_rect(fill = "transparent", color = NA))
+    # gg <- ggplot(dataset1(), aes(x = as.data.frame(index(dataset1())), y = as.data.frame(coredata(dataset())), color = assets)) +
+    #   geom_line()+
+    #   theme(panel.background = element_blank(),
+    #         panel.grid.major = element_line(color = "gray", linetype = "dashed"),
+    #         panel.grid.minor = element_blank(),
+    #         plot.background = element_rect(fill = "transparent", color = NA))
     #if(input$click_kursuebersicht1$x %in% smi[1,]){
       # gg <- gg +
       #   geom_vline(xintercept = as.numeric("2023-03-28"),size=10, colour="red")
     #}
     
-    gg
+    #gg
     
     # gg_ly <- ggplotly(gg)
     # gg_ly
   }, bg="transparent"  )
   
-  
+  reactive(print(dataset1()))
   
   
   
@@ -273,26 +327,36 @@ start_date_selector <- reactive({
              pos = if_else(is.na(pos), value/2, pos))
     
     ggplot(df_donut, aes(x = hsize, y = value, fill = Anlage)) +
-      geom_col(color = "black") +
+      geom_col(color = "black", size=1) +
+      scale_fill_brewer(palette = "YlGnBu") + # change fill to gold color palette
       coord_polar(theta = "y") +
       
-      geom_label_repel(aes(label = percent(fraction),
+      geom_label_repel(aes(label = paste(percent(fraction)), 
                                  ),
                  position = position_stack(vjust=0.5),
                  inherit.aes = TRUE,
-                 show.legend=FALSE) +
-      theme(legend.title = element_text(colour = "black", size = 50, face = "bold"), 
-            legend.text = element_text(colour = "black", size = 40), 
-            panel.grid = element_blank(),
-            axis.text = element_blank(),
-            axis.title = element_blank(),
-            axis.ticks = element_blank(),
-            legend.position = "bottom") +
-      annotate("text", x = 0, y = 0, size = 16, label = paste(abbreviate2(sum(df_donut$value)), "CHF") )+
+                 show.legend=FALSE,
+                 box.padding = 0,
+                 size=5, 
+                 color="gold3"  ) +
+      guides(fill = guide_legend(title = "Anlage", title.position = "top"))+
+      # theme(legend.title = element_text(color = "gold", size = 50, face = "bold"), 
+      #       legend.text = element_text(color = "gold", size = 40), 
+      #       panel.grid = element_blank(),
+      #       axis.text = element_blank(),
+      #       axis.title = element_blank(),
+      #       axis.ticks = element_blank(),
+      #       plot.title=element_blank(),
+      #       legend.position = "bottom") +
+      annotate("text", x = 0, y = 0, size = 20, color="navyblue", label = paste(abbreviate2(sum(df_donut$value)), "CHF"))+
       theme_void()
   }, bg="transparent")
   
-  
+  observeEvent(input$new_investment, {
+    print("Event triggered")
+    print(session)
+    updateNavbarPage(session, "navbar", selected="Investment")
+  })
   
   
 }

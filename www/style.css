@@ -1,5 +1,9 @@
 body {
-  background-color: #e3f4fa;
+  /*color: #d8c690;*/
+  color:rgba(9,9,121,0.7768115942028986);
+  /*background-color: #424242*/;
+  background: rgb(2,0,36);
+  background: linear-gradient(180deg, rgba(2,0,36,1) 0%, rgba(9,9,121,0.7768115942028986) 18%, rgba(219,248,254,1) 50%);
 }
 
 /*#navbar {
@@ -12,7 +16,7 @@ body {
 }*/
 
 h2 {
-  color:#5b8cc4;
+  color:#be9e44;
   font-family: 'Yusei Magic', sans-serif;
   display: block;
       }
@@ -24,24 +28,82 @@ body > div > nav .nav.navbar-nav {
             
             
         }
+/*navbar color on hover*/
+.navbar-default .navbar-nav>li>a {
+    color: #CBB26a;
+}       
 
+/*setting for logo   */   
+#logo {
+  margin-right: 30px;
+  margin-left: 30px;
+  top: 20px;
+  padding: 0px 0px;
+}
+
+/*Standard button override
+.btn-default {
+  margin-top: 25px;
+    color: #d8c690;
+    background-color: #090979;
+    border-color: #CBB26a;
+}*/
+/* new investment button design*/
+#new_investment, #load-donut-chart{
+  margin-top: 25px;
+    color: #d8c690;
+    background-color: #090979;
+    border-color: #CBB26a;
+}
+
+a {
+    color: #d8c690;
+    text-decoration: none;
+}
+
+/* change text input field colors */
+.form-control{
+  color:rgba(9,9,121,0.7768115942028986);
+  /*color: #ffd700;*/
+  background-color: #f6f6f6;
+}
 
 /* Navbar Title*/
 .navbar .navbar-brand{
-                       color: #2b8cc4;
+  width=100%;
+  text-align: center;
+  /*color: #2b8cc4;*/
+  padding: 0px 30px;
+
+/* expand navabr to whole page*/
+.container-fluid {
+    padding-right: 0px;
+    padding-left: 0px;
+    margin-right: auto;
+    margin-left: auto;
+}
                       }
+/*nabar over whole page*/                     
+.navbar-header {
+  width =100%;
+}
+
+
+
 /* Navbar color */
 .navbar-static-top {
-  background-color: #99e2ff ;
+  /*background-color: #1a1a1a;*/
+  background-color: rgba(2,0,36,0.2);
+  
   
 }
 
+#navbar color if active
 .navbar-nav li a:hover, .navbar-nav > .active > a {
-color: #fff !important;
+color: #be9e44 !important;
 
-
-
-background-color:#2b8cc4 !important;
+/*background-color:#2d2d2d !important;*/
+  background-color: rgba(9,9,121,0.8) !important;
 }
 
 
