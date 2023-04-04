@@ -12,6 +12,7 @@ library(ggrepel)
 library(tidyverse)
 library(TTR)
 library(RColorBrewer)
+#devtools::install_github("gianndon/popSwissr")
 
 #function to abbreviate numbers
 abbreviate2 <- function(x) {
@@ -96,15 +97,19 @@ ui <- function(request) {
                                      #sidebarPanel(
                                        # selectInput("period", "Select period:",
                                           #         choices = c("1 day", "1 week", "1 month", "1 year", "5 years", "10 years"))
-                                       column(6, selectInput("assets2", "Select Assets:", choices = assets1, 
-                                                             selected = c("^SSMI", "^GSPC"), 
-                                                             multiple = TRUE,
-                                                             )),
+                                       column(6, checkboxGroupInput("assets2", "Select Assets:", choices = assets1, 
+                                                             selected = c("^SSMI", "^GSPC"),
+                                                             inline=TRUE,
+                                                             #multiple = TRUE,
+                                                             ), id="kursuebersicht_style"),
                                        column(6,selectInput("period", "Select period:",
-                                                              choices = c("1 day", "1 week", "1 month", "1 year", "5 years", "10 years"), selected = "1 month")),
+                                                              choices = c("1 day", "1 week", "1 month", "1 year", "5 years", "10 years"), 
+                                                              selected = "1 month"), id="kursuebersicht_style"),
                                        #plotOutput("stockPlot")
-                                       verbatimTextOutput("click_kursuebersicht2"),
+                                       
                                        plotOutput("smi_plot", click="click_kursuebersicht1"),
+                                       br(),
+                                       verbatimTextOutput("click_kursuebersicht2"),
                                        fluidRow()
                                         ),
                                     
@@ -207,22 +212,29 @@ start_date_selector <- reactive({
 
   #Output wenn klicken in Kursübersicht
   output$click_kursuebersicht2 <- renderPrint({
-    if(is.null(input$click_kursuebersicht1$x)){
-      datum1 <- Sys.Date()
-      datum <- datum1-1
+    if(is.null(input$click_kursuebersicht1)){
+      datum <- Sys.Date()
+      
     }
-    else{ 
+    else{
     # datum <- as.Date(input$click_kursuebersicht1$x)
     # datum1 <- as.Date(datum)+1
       click_pos <- input$click_kursuebersicht1
-      click_date <- index(dataset1())[as.Date(click_pos$x),]
-      click_value <- data[click_date]
+      datum <- as.POSIXct(input$click_kursuebersicht1$x, origin = "1970-01-01", tz = "UTC")
+      datum <- format(datum, "%Y-%m-%d")
+      #click_value <- data[click_date]
     }
    # smi <- getSymbols("^SSMI", from = datum, to= datum1, auto.assign = FALSE )
     # c("Datum" = datum
     #   , "SMI" = round(smi[datum,"SSMI.Adjusted"],3)
     #   )
-    c("Datum: " = datum, "SMI " = click_value)
+    c("Datum: " = datum, "SMI: " = round(dataset()[,1][datum],2),
+      "USD/CHF"=round(dataset()[,2][datum],2), 
+      "S&P500: "= round(dataset()[,3][datum],2),
+      "Gold:" = round(dataset()[,4][datum],2),
+      "Bitcoin: " = round(dataset()[,5][datum],2),
+      "CH Staatsanleihen:" = round(dataset()[,6][datum],2),
+      "US Staatsanleihen:" = round(dataset()[,7][datum],2))
     #print(input$click_kursuebersicht1)
   })
   
@@ -238,6 +250,8 @@ start_date_selector <- reactive({
     end_date <- Sys.Date()
     
     popSwissr::get_data(assets, start_date, end_date)
+    
+    #popSwissr::convert_currencies(assets)
     
     # Get stock price data
     # do.call(cbind, 
@@ -283,8 +297,8 @@ start_date_selector <- reactive({
   
   output$smi_plot <- renderPlot({
     
-    coulours <- brewer.pal(8, "BrBG")
-    plot.xts(dataset2(), bg="transparent", col=coulours, col.lab="gold2", labels.col="navyblue", cex.axis=1.3 )
+    coulours <- brewer.pal(8, "Dark2")
+    plot.xts(dataset2(), bg="transparent", col=coulours, col.lab="gold2", labels.col="navyblue", cex.axis=1.3 , lwd=3)
     addLegend("topleft", lty=1, lwd=2)
     
     # Create ggplot object
@@ -353,8 +367,6 @@ start_date_selector <- reactive({
   }, bg="transparent")
   
   observeEvent(input$new_investment, {
-    print("Event triggered")
-    print(session)
     updateNavbarPage(session, "navbar", selected="Investment")
   })
   
