@@ -12,7 +12,18 @@ library(ggrepel)
 library(tidyverse)
 library(TTR)
 library(RColorBrewer)
-#devtools::install_github("gianndon/popSwissr")
+library(matrixStats)
+#devtools::install_github("gianndon/popSwissr", force=TRUE)
+
+
+#binds data columnwise and fills with NA
+cbind.fill <- function(...){
+  nm <- list(...)
+  nm<-lapply(nm, as.matrix)
+  n <- max(sapply(nm, nrow))
+  do.call(cbind, lapply(nm, function(x)
+    rbind(x, matrix(,n-nrow(x), ncol(x))))) # ignore error
+}
 
 #function to abbreviate numbers
 abbreviate2 <- function(x) {
@@ -27,16 +38,6 @@ abbreviate2 <- function(x) {
   }
 }
 
-# Define the assets and their expected returns and covariance matrix
-# assets <- c("smi", "gold", "bitcoin", "ch_gov_bonds", "us_gov_bonds", "sp500", "usd_chf")
-# returns <- c(0.06, 0.01, 0.2, 0.02, 0.03, 0.08, 0.01)
-# covariance <- matrix(c(0.04, -0.01, 0.05, 0.01, 0.02, 0.03, -0.01,
-#                        -0.01, 0.03, 0.02, 0.01, -0.02, -0.01, 0.03,
-#                        0.05, 0.02, 0.1, -0.03, -0.01, 0.04, -0.02,
-#                        0.01, 0.01, -0.03, 0.04, 0.02, -0.02, 0.01,
-#                        0.02, -0.02, -0.01, 0.02, 0.05, 0.01, -0.01,
-#                        0.03, -0.01, 0.04, -0.02, 0.01, 0.09, -0.02,
-#                        -0.01, 0.03, -0.02, 0.01, -0.01, -0.02, 0.04), nrow = 7, ncol = 7)
 
 # Specify the assets and date range
 assets <- c("^SSMI", "USDCHF=X", "^GSPC", "GC=F", "BTC-USD", "CSBGC0.SW", "^TNX")
@@ -45,6 +46,8 @@ assets1 <- c("SMI"="^SSMI", "USD/CHF"="USDCHF=X", "S&P500"="^GSPC", "Gold"="GC=F
 
 title <- tags$a(tags$img(src="Swisscon_Logo2.png", height="45px", id="logo"))
 
+#data up to 1970
+data_1970 <- popSwissr::convert_currencies(assets, Sys.Date()-30*365, Sys.Date())
 
 
 
@@ -86,7 +89,11 @@ ui <- function(request) {
                                    column(3, actionButton("load-donut-chart", "Chart aktualisieren")),
                                    br(),
                                    br(),
-                                   fluidRow(), 
+                                   fluidRow(),
+                                   column(6, 
+                                          h1("MVP"),
+                                          plotOutput("donut_mvp_my_portfolio", height= "45vh")),
+                                   column(6, h1("TP")),
                                    width ="100vh")),
                             
                           tabPanel("Kursübersicht",
@@ -98,7 +105,7 @@ ui <- function(request) {
                                        # selectInput("period", "Select period:",
                                           #         choices = c("1 day", "1 week", "1 month", "1 year", "5 years", "10 years"))
                                        column(6, checkboxGroupInput("assets2", "Select Assets:", choices = assets1, 
-                                                             selected = c("^SSMI", "^GSPC"),
+                                                             selected = assets1,
                                                              inline=TRUE,
                                                              #multiple = TRUE,
                                                              ), id="kursuebersicht_style"),
@@ -123,8 +130,17 @@ ui <- function(request) {
                           tabPanel("Rendite Maximieren / Risiko Minimieren"),
                           tabPanel("Minimum Varianz Portfolio",
                                    actionButton("optimize_button", "Optimieren"),
-                                   h3("Portfolio-Ergebnisse:"),
-                                   verbatimTextOutput("portfolio_results")
+                                   h1("Portfolio-Ergebnisse:"),
+                                   column(9, checkboxGroupInput("assets3", "Select Assets:", choices = assets1, 
+                                                                selected = assets1,
+                                                                inline=TRUE,
+                                                                #multiple = TRUE,
+                                   ), id="kursuebersicht_style"),
+                                   column(3,numericInput("mvp_amount", "Amount [CHF]", value = 20000)),
+                                   br(),
+                                   column(9, plotOutput("donut_mvp", height= "65vh")),
+                                   column(3,verbatimTextOutput("portfolio_results")),
+                                 
                                    
                                    ),
                           tabPanel("Tangentialportfolio"),
@@ -151,15 +167,34 @@ server <- function(input, output, session) {
 # Eingabe aktuelles Portfolio ---------------------------------------------
   observeEvent(input$submit, {
     smi <- input$SMI
-    ch_gov_bonds <- input$Ch-Staatsanleihen
+    ch_gov_bonds <<- input$us_gov_bonds
     gold <- input$gold
     bitcoin <- input$bitcoin
-    us_gov_bonds <- input$us-staatsanleihen
+    us_gov_bonds <- input$us_gov_bonds
     sp500 <- input$sp500
     usd_chf <- input$usd-chf-devisen
     
   })
   
+  #c("SMI"="^SSMI", "USD/CHF"="USDCHF=X", "S&P500"="^GSPC", "Gold"="GC=F", "Bitcoin USD"="BTC-USD", "CH Staatsanleihen"="CSBGC0.SW", "US Staatsanleihen"="^TNX")
+  smi_port <- reactive({input$smi})
+  sp500_port <- reactive({input$sp500})
+  ch_gov_bonds_port <- reactive({input$ch_gov_bonds})
+  gold_port <- reactive({input$gold})
+  bitcoin_port <- reactive({input$bitcoin})
+  us_gov_bonds_port <- reactive({input$us_gov_bonds})
+  usd_chf_port <- reactive({input$usd_chf})
+  
+  my_portfolio <- reactive({c(smi_port(), 
+                              usd_chf_port(), 
+                              sp500_port(), 
+                              gold_port(), 
+                              bitcoin_port() ,
+                              ch_gov_bonds_port(), 
+                              us_gov_bonds_port() 
+                              )})
+  
+
 
 # Plot Testfunktion -------------------------------------------------------
 
@@ -241,37 +276,12 @@ start_date_selector <- reactive({
   output$test <- renderDataTable(rownames(dataset1()))
   
   dataset <- reactive({
-    # Plot smi_data based on selected period
-    # chartSeries(smi_data_reactive(), TA = NULL, theme="white")
-    
-    
-    
     start_date <- start_date_selector()
     end_date <- Sys.Date()
     
-    popSwissr::get_data(assets, start_date, end_date)
+    #popSwissr::get_data(assets, start_date, end_date)
     
-    #popSwissr::convert_currencies(assets)
-    
-    # Get stock price data
-    # do.call(cbind, 
-    #       lapply(assets, function(x) {
-    #         getSymbols(x,
-    #             src = "yahoo",
-    #             from = start_date,
-    #             to = end_date,
-    #             auto.assign = FALSE)[, 6]
-    #                       }))
-    
-    # # Convert to data frame
-    # stock_data <- data.frame(date = index(stock_data), coredata(stock_data))
-    # names(stock_data)[-1] <- assets
-    # 
-    # Reshape data
-    # stock_data <- stock_data %>%
-    #   pivot_longer(-date, names_to = "asset", values_to = "price")
-    # # Filter data based on selected assets
-    # data <- stock_data[stock_data$asset %in% input$assets, ]
+    popSwissr::convert_currencies(assets, starting_point=start_date, end_point= end_date)
   })
   
   #full dataset with all data
@@ -294,6 +304,40 @@ start_date_selector <- reactive({
     xts(subset_data, order.by = index(temp))
     
   })
+  dataset3 <- reactive({
+    temp <- data_1970
+    colnames(temp) <- assets
+    temp
+    
+    # subset data based on selected assets
+    subset_data <- temp[, input$assets3]
+    
+    # return xts object
+    xts(subset_data, order.by = index(temp))
+    
+  })
+  
+  dataset4 <- reactive({
+    temp <- data_1970
+    colnames(temp) <- assets
+    temp
+    
+    #names(my_portfolio) <- assets
+    assets4 <<- NULL
+    
+    for (i in seq_along(my_portfolio())){
+      if(my_portfolio()[i]!=0){
+        assets4 <-c(assets4, assets[i])
+      }
+    }
+    print(assets4)
+    # subset data based on selected assets
+    subset_data <- temp[, assets4]
+    
+    # return xts object
+    xts(subset_data, order.by = index(temp))
+    
+  })
   
   output$smi_plot <- renderPlot({
     
@@ -301,33 +345,45 @@ start_date_selector <- reactive({
     plot.xts(dataset2(), bg="transparent", col=coulours, col.lab="gold2", labels.col="navyblue", cex.axis=1.3 , lwd=3)
     addLegend("topleft", lty=1, lwd=2)
     
-    # Create ggplot object
-    # gg <- ggplot(dataset1(), aes(x = as.data.frame(index(dataset1())), y = as.data.frame(coredata(dataset())), color = assets)) +
-    #   geom_line()+
-    #   theme(panel.background = element_blank(),
-    #         panel.grid.major = element_line(color = "gray", linetype = "dashed"),
-    #         panel.grid.minor = element_blank(),
-    #         plot.background = element_rect(fill = "transparent", color = NA))
-    #if(input$click_kursuebersicht1$x %in% smi[1,]){
-      # gg <- gg +
-      #   geom_vline(xintercept = as.numeric("2023-03-28"),size=10, colour="red")
-    #}
-    
-    #gg
-    
-    # gg_ly <- ggplotly(gg)
-    # gg_ly
+   
   }, bg="transparent"  )
   
-  reactive(print(dataset1()))
+  #reactive(print(my_portfolio()))
+ 
   
+  #MVP Calculation 
+mvp <- function(y){
+  N=dim(y)[1]
+  #print(N)
+  mittel=t(y)%*%rep(1/N,N)*365
+  #print(mittel)
+  Sigma=cov(y,y) 
+  #print(Sigma)
+  MVP1=solve(Sigma)%*%rep(1,ncol(y)) 
+  MVP=MVP1/sum(MVP1)
+  MVP<<-MVP[,1]
+  #print(MVP)
+  mvpreturn=t(MVP)%*%mittel
+  mvpvola=sqrt(t(MVP)%*%(Sigma%*%MVP))*sqrt(365)
+  #returns vector with mvp, return, and volatility
+  return( round(c(MVP, mvpreturn, mvpvola),3))
+  }
   
+  #MVP
+  output$portfolio_results <- renderText({
+    y=dataset3()
+    # y=data_1970[]
+     y = colDiffs(y)/y[-1,]  #NOCH TEILEN DURCH startwert
+    #print(y)
+    #y=y[,-2]
+    
+    mvp_kurs <- mvp(y)
+    print(t(mvp_kurs))
+    
+    
+  })
   
-  #create Donut Plot of portfolio
-  output$donut_index <- renderPlot({
-    #create data frame
-    df_donut <- data.frame(value=c(input$smi, input$gold, input$bitcoin, input$ch_gov_bonds, input$us_gov_bonds, input$sp500, input$usd_chf),
-                           Anlage=c("SMI", "Gold", "Bitcoin", "Schweizer Staatsanleihen", "US Staatsanleihen", "S&P500", "USD/CHF"))
+  donut <- function(df_donut){
     # Hole size
     hsize <- 7
     
@@ -346,24 +402,55 @@ start_date_selector <- reactive({
       coord_polar(theta = "y") +
       
       geom_label_repel(aes(label = paste(percent(fraction)), 
-                                 ),
-                 position = position_stack(vjust=0.5),
-                 inherit.aes = TRUE,
-                 show.legend=FALSE,
-                 box.padding = 0,
-                 size=5, 
-                 color="gold3"  ) +
+      ),
+      position = position_stack(vjust=0.5),
+      inherit.aes = TRUE,
+      show.legend=FALSE,
+      box.padding = 0,
+      size=5, 
+      color="gold3"  ) +
       guides(fill = guide_legend(title = "Anlage", title.position = "top"))+
-      # theme(legend.title = element_text(color = "gold", size = 50, face = "bold"), 
-      #       legend.text = element_text(color = "gold", size = 40), 
-      #       panel.grid = element_blank(),
-      #       axis.text = element_blank(),
-      #       axis.title = element_blank(),
-      #       axis.ticks = element_blank(),
-      #       plot.title=element_blank(),
-      #       legend.position = "bottom") +
       annotate("text", x = 0, y = 0, size = 20, color="navyblue", label = paste(abbreviate2(sum(df_donut$value)), "CHF"))+
       theme_void()
+  }
+  
+  
+  #create Donut Plot of portfolio
+  output$donut_index <- renderPlot({
+    #create data frame
+    df_donut <- data.frame(value=c(input$smi, input$gold, input$bitcoin, input$ch_gov_bonds, input$us_gov_bonds, input$sp500, input$usd_chf),
+                           Anlage=c("SMI", "Gold", "Bitcoin", "Schweizer Staatsanleihen", "US Staatsanleihen", "S&P500", "USD/CHF"))
+    
+    donut(df_donut)
+  }, bg="transparent")
+  
+  rendite_matrix <- function(x){
+    x = colDiffs(x)/x[-1,]
+  }
+  
+  
+  output$donut_mvp <- renderPlot({
+    #create data frame
+    y <- mvp(rendite_matrix(dataset3()))
+    
+    y <- y[1:(length(y)-2)]
+    df_donut <- data.frame(value=y*input$mvp_amount,
+                           Anlage=colnames(dataset3()))
+
+    donut(df_donut)
+  }, bg="transparent")
+  
+  #MVP Matrix Mein Portfolio
+  output$donut_mvp_my_portfolio <- renderPlot({
+    #create data frame
+    y <- mvp(rendite_matrix(dataset4()))
+    
+    y <- y[1:(length(y)-2)]
+    summe_portfolio <- sum(my_portfolio())
+    df_donut <- data.frame(value=y*summe_portfolio,
+                           Anlage=colnames(dataset4()))
+    
+    donut(df_donut)
   }, bg="transparent")
   
   observeEvent(input$new_investment, {
