@@ -13,6 +13,8 @@ library(tidyverse)
 library(TTR)
 library(RColorBrewer)
 library(matrixStats)
+library(shinydashboard)
+library(nloptr)
 #devtools::install_github("gianndon/popSwissr", force=TRUE)
 
 
@@ -140,6 +142,9 @@ ui <- function(request) {
                                    br(),
                                    column(9, plotOutput("donut_mvp", height= "65vh")),
                                    column(3,verbatimTextOutput("portfolio_results")),
+                                   fluidRow(
+                                     tableOutput("MVP_OUTPUT")
+                                   ),
                                  
                                    
                                    ),
@@ -446,7 +451,7 @@ mvp <- function(y){
     y <- mvp(rendite_matrix(dataset4()))
     
     y <- y[1:(length(y)-2)]
-    summe_portfolio <- sum(my_portfolio())
+    summe_portfolio <<- sum(my_portfolio())
     df_donut <- data.frame(value=y*summe_portfolio,
                            Anlage=colnames(dataset4()))
     
@@ -455,6 +460,25 @@ mvp <- function(y){
   
   observeEvent(input$new_investment, {
     updateNavbarPage(session, "navbar", selected="Investment")
+  })
+  
+  get_valueBox_input <- function(){
+    
+  }
+  
+  output$MVP_OUTPUT <- renderTable({
+    anteil <- mvp(rendite_matrix(dataset3()))[]
+    a <- rbind((anteil*100),colnames(dataset3())[], anteil*summe_portfolio)
+    a
+    # valueBox(
+    #   paste0(round(mvp(rendite_matrix(dataset3()))[2]*100,2), "%"),
+    #   subtitle=colnames(dataset3())[2],
+    #   icon=NULL,
+    #   color="blue",
+    #   width=4,
+    #   href=NULL
+    # )
+    
   })
   
   
