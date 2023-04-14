@@ -88,7 +88,7 @@ ui <- function(request) {
                                    column(3,numericInput("us_gov_bonds", "US Staatsanleihen [CHF]", value = 5000)),
                                    column(3,numericInput("sp500", "SP500 [CHF]", value = 1000)),
                                    column(3,numericInput("usd_chf", "USD/CHF Devisen [CHF]", value = 9000)),
-                                   column(3, actionButton("load-donut-chart", "Chart aktualisieren")),
+                                   column(3,),
                                    br(),
                                    br(),
                                    fluidRow(),
@@ -106,12 +106,12 @@ ui <- function(request) {
                                      #sidebarPanel(
                                        # selectInput("period", "Select period:",
                                           #         choices = c("1 day", "1 week", "1 month", "1 year", "5 years", "10 years"))
-                                       column(6, checkboxGroupInput("assets2", "Select Assets:", choices = assets1, 
+                                       column(9, checkboxGroupInput("assets2", "Select Assets:", choices = assets1, 
                                                              selected = assets1,
                                                              inline=TRUE,
                                                              #multiple = TRUE,
                                                              ), id="kursuebersicht_style"),
-                                       column(6,selectInput("period", "Select period:",
+                                       column(3,selectInput("period", "Select period:",
                                                               choices = c("1 day", "1 week", "1 month", "1 year", "5 years", "10 years"), 
                                                               selected = "1 month"), id="kursuebersicht_style"),
                                        #plotOutput("stockPlot")
@@ -131,8 +131,7 @@ ui <- function(request) {
                         tabsetPanel(id="tabsetPanel",
                           tabPanel("Rendite Maximieren / Risiko Minimieren"),
                           tabPanel("Minimum Varianz Portfolio",
-                                   actionButton("optimize_button", "Optimieren"),
-                                   h1("Portfolio-Ergebnisse:"),
+                                   h2("Minimum Varianz Portfolio"),
                                    column(9, checkboxGroupInput("assets3", "Select Assets:", choices = assets1, 
                                                                 selected = assets1,
                                                                 inline=TRUE,
@@ -412,7 +411,7 @@ mvp <- function(y){
       inherit.aes = TRUE,
       show.legend=FALSE,
       box.padding = 0,
-      size=5, 
+      size=7, 
       color="gold3"  ) +
       guides(fill = guide_legend(title = "Anlage", title.position = "top"))+
       annotate("text", x = 0, y = 0, size = 20, color="navyblue", label = paste(abbreviate2(sum(df_donut$value)), "CHF"))+

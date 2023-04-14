@@ -39,6 +39,7 @@ h2 {
   font-family: 'Yusei Magic', sans-serif;
   font-weight: bold;
   display: block;
+  font-size: 35px;
       }
       
 
@@ -51,7 +52,25 @@ body > div > nav .nav.navbar-nav {
 /*navbar color on hover*/
 .navbar-default .navbar-nav>li>a {
     color: #CBB26a;
-}       
+}  
+
+/* font size navbar elements  */
+a {
+  font-size: 20px;
+}
+/* font size of elements in checkbox  */
+span{
+  font-size: 19px;
+}
+/* font size of label element of checkbox  */
+label{
+  font-size: 20px;
+}
+
+/* font size of button element  */
+.btn{
+  font-size: 18px;
+}
 
 /*setting for logo   */   
 #logo {
@@ -60,6 +79,8 @@ body > div > nav .nav.navbar-nav {
   top: 20px;
   padding: 0px 0px;
 }
+
+
 
 /*Standard button override
 .btn-default {
