@@ -94,8 +94,8 @@ ui <- function(request) {
                                    fluidRow(),
                                    column(6, 
                                           h1("MVP"),
-                                          plotOutput("donut_mvp_my_portfolio", height= "45vh")),
-                                   column(6, h1("TP")),
+                                          plotOutput("boxplot_mvp_my_portfolio", height= "45vh")),
+                                  column(6, h1("TP")),
                                    width ="100vh")),
                             
                           tabPanel("Kursübersicht",
@@ -464,6 +464,28 @@ mvp <- function(y){
   get_valueBox_input <- function(){
     
   }
+  
+  # WORKING ON THIS: MAKE BACKGROUND TRANSPARENT, FIT IN SITE COLUMN
+  output$boxplot_mvp_my_portfolio <- renderPlot({
+    y <- mvp(rendite_matrix(dataset4()))
+    
+    y <- y[1:(length(y)-2)]
+    summe_portfolio <<- sum(my_portfolio())
+    df <- data.frame(value=y*summe_portfolio,
+                           Anlage=colnames(dataset4()))
+    print(df)
+    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
+      geom_bar(stat = "identity") +
+      scale_fill_brewer(palette = "YlGnBu") +
+      geom_text(aes(label = df$value), vjust = -0.5) +
+      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
+            panel.grid.major = element_blank(), # remove the major grid lines
+            panel.grid.minor = element_blank(), # remove the minor grid lines
+            plot.background = element_rect(fill = "transparent"), # set the plot background to white
+            axis.line = element_line(color = "black"), # set the axis lines to black
+            axis.text = element_text(color = "black"), # set the axis text to black
+            axis.title = element_text(color = "black")) # set the axis title to black
+  }, bg="transparent")
   
   output$MVP_OUTPUT <- renderTable({
     anteil <- mvp(rendite_matrix(dataset3()))[]
