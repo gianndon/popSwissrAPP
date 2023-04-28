@@ -13,8 +13,11 @@ library(tidyverse)
 library(TTR)
 library(RColorBrewer)
 library(matrixStats)
+library(shinyWidgets)
 library(shinydashboard)
 library(nloptr)
+library(leaflet)
+library(geosphere)
 #devtools::install_github("gianndon/popSwissr", force=TRUE)
 
 
@@ -41,17 +44,33 @@ abbreviate2 <- function(x) {
 }
 
 
+
+
 # Specify the assets and date range
 assets <- c("^SSMI", "USDCHF=X", "^GSPC", "GC=F", "BTC-USD", "CSBGC0.SW", "^TNX")
                 #c("SMI", "USD / CHF", "S&P500", " ", "Bitcoin USD", " ", " ", " "))
 assets1 <- c("SMI"="^SSMI", "USD/CHF"="USDCHF=X", "S&P500"="^GSPC", "Gold"="GC=F", "Bitcoin USD"="BTC-USD", "CH Staatsanleihen"="CSBGC0.SW", "US Staatsanleihen"="^TNX")
+assets2 <- c("SMI", "USD/CHF", "S&P500", "Gold", "Bitcoin USD", "CH Staatsanleihen", "US Staatsanleihen")
+
+#create new asset names
+rename_assets <- function(asset){
+  name <- c()
+  for (i in asset) {
+    print(i)
+    for (j in 1:length(assets2)) {
+      if(i==assets[j]){
+        name<-c(name,assets2[j])
+      }
+    }
+    
+  }
+  name
+}
 
 title <- tags$a(tags$img(src="Swisscon_Logo2.png", height="45px", id="logo"))
 
 #data up to 1970
 data_1970 <- popSwissr::convert_currencies(assets, Sys.Date()-30*365, Sys.Date())
-
-
 
 
 #smi_data <- getSymbols("^SSMI", auto.assign = FALSE)
@@ -63,10 +82,26 @@ ui <- function(request) {
     
     tags$head(
       tags$link(rel = "stylesheet", type = "text/css", href = "style.css")),
+    tags$body(
+      HTML('
+      <body>
+  <div>
+     <div class="wave"></div>
+     <div class="wave"></div>
+     <div class="wave"></div>
+  </div>
+</body>
+    ')
+    ),
     
     #Navbar
     navbarPage(title=title,
                id="navbar", fluid=TRUE,
+               ###### Here : insert shinydashboard dependencies ######
+               header = tagList(
+                 useShinydashboard()
+               ),
+               #######################################################
                tabPanel("Übersicht",
                         tabsetPanel(
                           tabPanel("Portfolio",
@@ -138,12 +173,13 @@ ui <- function(request) {
                                                                 #multiple = TRUE,
                                    ), id="kursuebersicht_style"),
                                    column(3,numericInput("mvp_amount", "Amount [CHF]", value = 20000)),
+                                   
                                    br(),
-                                   column(9, plotOutput("donut_mvp", height= "65vh")),
-                                   column(3,verbatimTextOutput("portfolio_results")),
-                                   fluidRow(
-                                     tableOutput("MVP_OUTPUT")
-                                   ),
+                                   column(12, plotOutput("donut_mvp", height= "65vh")),
+                                   br(),
+                                   fluidRow(valueBoxOutput("mvp_renditeBox"),
+                                            valueBoxOutput("mvp_risikoBox")),
+                                   column(12, tableOutput("MVP_OUTPUT")),
                                  
                                    
                                    ),
@@ -153,8 +189,12 @@ ui <- function(request) {
                         )),
                tabPanel("Über uns", 
                         tabsetPanel(
-                          tabPanel("Geschichte"),
-                          tabPanel("Kontakt")
+                          tabPanel("Geschichte",
+                                   includeHTML("www/uber_uns.html")
+                                   ),
+                          tabPanel("Kontakt",
+                                   includeHTML("www/kontakt.Rhtml"),
+                                   leafletOutput("map"))
                         ))
     ),
     #titlePanel(h2("Test")),
@@ -438,42 +478,10 @@ mvp <- function(y){
     y <- mvp(rendite_matrix(dataset3()))
     
     y <- y[1:(length(y)-2)]
-    df_donut <- data.frame(value=y*input$mvp_amount,
-                           Anlage=colnames(dataset3()))
+    df <- data.frame(value=y*input$mvp_amount,
+                           Anlage=rename_assets(colnames(dataset3())))
 
-    donut(df_donut)
-  }, bg="transparent")
-  
-  #MVP Matrix Mein Portfolio
-  output$donut_mvp_my_portfolio <- renderPlot({
-    #create data frame
-    y <- mvp(rendite_matrix(dataset4()))
-    
-    y <- y[1:(length(y)-2)]
-    summe_portfolio <<- sum(my_portfolio())
-    df_donut <- data.frame(value=y*summe_portfolio,
-                           Anlage=colnames(dataset4()))
-    
-    donut(df_donut)
-  }, bg="transparent")
-  
-  observeEvent(input$new_investment, {
-    updateNavbarPage(session, "navbar", selected="Investment")
-  })
-  
-  get_valueBox_input <- function(){
-    
-  }
-  
-  # WORKING ON THIS: MAKE BACKGROUND TRANSPARENT, FIT IN SITE COLUMN
-  output$boxplot_mvp_my_portfolio <- renderPlot({
-    y <- mvp(rendite_matrix(dataset4()))
-    
-    y <- y[1:(length(y)-2)]
-    summe_portfolio <<- sum(my_portfolio())
-    df <- data.frame(value=y*summe_portfolio,
-                           Anlage=colnames(dataset4()))
-    print(df)
+    # donut(df_donut)
     ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
       geom_bar(stat = "identity") +
       scale_fill_brewer(palette = "YlGnBu") +
@@ -487,21 +495,106 @@ mvp <- function(y){
             axis.title = element_text(color = "black")) # set the axis title to black
   }, bg="transparent")
   
-  output$MVP_OUTPUT <- renderTable({
-    anteil <- mvp(rendite_matrix(dataset3()))[]
-    a <- rbind((anteil*100),colnames(dataset3())[], anteil*summe_portfolio)
-    a
-    # valueBox(
-    #   paste0(round(mvp(rendite_matrix(dataset3()))[2]*100,2), "%"),
-    #   subtitle=colnames(dataset3())[2],
-    #   icon=NULL,
-    #   color="blue",
-    #   width=4,
-    #   href=NULL
-    # )
+  #MVP Matrix Mein Portfolio
+  output$donut_mvp_my_portfolio <- renderPlot({
+    #create data frame
+    y <- mvp(rendite_matrix(dataset4()))
     
+    y <- y[1:(length(y)-2)]
+    summe_portfolio <<- sum(my_portfolio())
+    df_donut <- data.frame(value=y*summe_portfolio,
+                           Anlage=rename_assets(colnames(dataset4())))
+    
+    donut(df_donut)
+  }, bg="transparent")
+  
+  observeEvent(input$new_investment, {
+    updateNavbarPage(session, "navbar", selected="Investment")
   })
   
+  get_valueBox_input <- function(){
+    
+  }
+  
+  #boxplot of MVP in my_portfolio-page
+  output$boxplot_mvp_my_portfolio <- renderPlot({
+    y <- mvp(rendite_matrix(dataset4()))
+    
+    y <- y[1:(length(y)-2)]
+    summe_portfolio <<- sum(my_portfolio())
+    df <- data.frame(value=y*summe_portfolio,
+                           Anlage=rename_assets(colnames(dataset4())))
+    print(df)
+    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
+      geom_bar(stat = "identity") +
+      scale_fill_brewer(palette = "YlGnBu") +
+      geom_text(aes(label = df$value), vjust = -0.5) +
+      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
+            panel.border = element_blank(),
+            panel.grid.major = element_blank(), # remove the major grid lines
+            panel.grid.minor = element_blank(), # remove the minor grid lines
+            plot.background = element_rect(fill = "transparent"), # set the plot background to white
+            #legend.background = element_blank(),
+            axis.line = element_line(color = "black"), # set the axis lines to black
+            axis.text = element_text(color = "black"), # set the axis text to black
+            axis.title = element_text(color = "black")) # set the axis title to black
+  }, bg="transparent")
+  
+  output$MVP_OUTPUT <- renderTable({
+    anteil <- mvp(rendite_matrix(dataset3()))[]
+    a <- rbind(rename_assets(colnames(dataset3()))[],paste(percent(anteil)), anteil*summe_portfolio)
+    colnames(a)<-a[1,]
+    a<-a[-1, ]
+    a
+     })
+  
+  output$mvp_renditeBox <- renderValueBox({
+    y <- mvp(rendite_matrix(dataset3()))
+    y <- y[length(y)-1]
+    valueBox(
+      
+      paste(y*100, "%"), "Rendite", icon = icon("resize-vertical", lib = "glyphicon"),
+      color = "aqua", width=6
+    )
+  })
+  
+  output$mvp_risikoBox <- renderValueBox({
+    y <- mvp(rendite_matrix(dataset3()))
+    y <- y[length(y)]
+    
+    valueBox(
+      paste(y*100, "%"), "Risiko", icon = icon("warning-sign", lib = "glyphicon"),
+      color = "aqua", width = 6
+    )
+  })
+  
+  
+  
+  
+  # Get current location
+  current_location <- reactive({
+    # Use geosphere package to get current location
+    lat <- 0
+    lng <- 0
+    if (!is.na(Sys.getenv("MAPBOX_TOKEN"))) {
+      location <- geosphere::geocode("current location")
+      lat <- location$lat
+      lng <- location$lon
+    }
+    return(c(lat, lng))
+  })
+  
+  # Render map
+  output$map <- renderLeaflet({
+    leaflet() %>%
+      addProviderTiles(providers$Stamen.TonerLite,
+                       options = providerTileOptions(noWrap = TRUE)) %>%
+      addTiles() %>%
+      addMarkers(lng = 8.72923, lat = 47.49732, popup = "Swisscon Hauptsitz") %>%
+      #addMarkers(lng = current_location()[2], lat = current_location()[1], popup = "Aktueller Standort") %>%
+      #setView(current_location(), zoom = 10)
+      setView(lng = 8.72923, lat = 47.49732, zoom = 13)
+  })
   
 }
 enableBookmarking(store = "url")
