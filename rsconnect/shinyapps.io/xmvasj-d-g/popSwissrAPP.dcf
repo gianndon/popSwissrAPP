@@ -1,0 +1,14 @@
+name: popSwissrAPP
+title: popSwissrAPP
+username:
+account: xmvasj-d-g
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 8850685
+bundleId: 7088757
+url: https://xmvasj-d-g.shinyapps.io/popSwissrAPP/
+when: 1681461618.52094
+lastSyncTime: 1681461618.52095
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|README.md
