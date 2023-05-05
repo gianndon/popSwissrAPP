@@ -100,6 +100,7 @@ ui <- function(request) {
     ')
     ),
     
+    
     #Navbar
     navbarPage(title=title,
                id="navbar", fluid=TRUE,
@@ -229,6 +230,10 @@ ui <- function(request) {
                  )
                )
                
+    ),
+    tags$footer(
+      style = "text-align: center;",
+      "Copyright © 2023 Swisscon. All rights reserved."
     )
     
     #titlePanel(h2("Test")),
