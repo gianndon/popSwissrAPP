@@ -21,6 +21,9 @@ library(geosphere)
 #devtools::install_github("gianndon/popSwissr", force=TRUE)
 
 
+
+
+
 #binds data columnwise and fills with NA
 cbind.fill <- function(...){
   nm <- list(...)
@@ -51,6 +54,9 @@ assets <- c("^SSMI", "USDCHF=X", "^GSPC", "GC=F", "BTC-USD", "CSBGC0.SW", "^TNX"
                 #c("SMI", "USD / CHF", "S&P500", " ", "Bitcoin USD", " ", " ", " "))
 assets1 <- c("SMI"="^SSMI", "USD/CHF"="USDCHF=X", "S&P500"="^GSPC", "Gold"="GC=F", "Bitcoin USD"="BTC-USD", "CH Staatsanleihen"="CSBGC0.SW", "US Staatsanleihen"="^TNX")
 assets2 <- c("SMI", "USD/CHF", "S&P500", "Gold", "Bitcoin USD", "CH Staatsanleihen", "US Staatsanleihen")
+assets3 <- c("SMI"="^SSMI", "S&P500"="^GSPC", "Gold"="GC=F", "Bitcoin USD"="BTC-USD", "CH Staatsanleihen"="CSBGC0.SW", "US Staatsanleihen"="^TNX")
+
+
 
 #create new asset names
 rename_assets <- function(asset){
@@ -185,7 +191,7 @@ ui <- function(request) {
                                    ),
                           tabPanel("Tangentialportfolio",
                                    h2("Tangential Portfolio"),
-                                   column(9, checkboxGroupInput("assets5", "Select Assets:", choices = assets1, 
+                                   column(9, checkboxGroupInput("assets5", "Select Assets:", choices = assets3, 
                                                                 selected = assets1,
                                                                 inline=TRUE,
                                                                 #multiple = TRUE,
@@ -408,28 +414,51 @@ start_date_selector <- reactive({
   })
   
   dataset5 <- reactive({
-    assets1 <- input$assets5
-    print("assets1")
-    print(input$assets5)
-    dat_raw <- popSwissr::convert_currencies(symbols=assets1)
-    dat <- rendite_matrix(dat_raw)
-    #colnames(dat) <- input$assets5
-    print("is(dat)")
-    print(is(dat))
+    # assets1 <- input$assets5
+    
+    # dat_raw <- popSwissr::convert_currencies(symbols=assets1)
+    # dat <- timeSeries::returns(dat_raw)
+    # #colnames(dat) <- input$assets5
+    # print("is(dat)")
+    # print(is(dat))
+    temp <- data_1970
+    colnames(temp) <- assets
+    temp
+    
+    # subset data based on selected assets
+    subset_data <- temp[, input$assets5]
+    
+    # return xts object
+    xts(subset_data, order.by = index(temp))
     
     
   })
   
   dataset6 <- reactive({
-    assets1 <- assets
-    dat_raw <- popSwissr::convert_currencies(symbols=assets1)
-    dat <- timeSeries::returns(dat_raw)[-1,]
-    #colnames(dat) <- input$assets5
-    print("is(dat)")
-    print(is(dat))
+    assets1 <- input$assets5
+    assets1 <- c(assets1, "USDCHF=X")
+    print("assets5")
+    print(assets1)
     
+    dat_raw <- popSwissr::convert_currencies(symbols=assets1)
+    print("dat_raw:")
+    print(is(dat_raw))
+    dat <- timeSeries::returns(dat_raw)
+    print("dat:")
+    print(is(dat))
+    print(dat)
+    #colnames(dat) <- input$assets5
+    dat
+    
+    # print("is(dat)")
+    # print(is(dat)
     
   })
+  
+  
+
+    
+
   
   output$smi_plot <- renderPlot({
     
@@ -461,7 +490,31 @@ mvp <- function(y){
   print(is(mvpvola))
   #returns vector with mvp, return, and volatility
   return( round(c(MVP, mvpreturn, mvpvola),3))
-  }
+}
+
+#TP Calculation
+tp <- function(assets, rf=0.01, p_year=260){ 
+  # library 
+  library(expm) 
+  # yearly returns, volatility and covariance 
+  yearly_return <- apply(X=assets*p_year, MARGIN=2, FUN=mean) 
+  yearly_volatility <- apply(X=assets*sqrt(p_year), MARGIN=2, FUN=sd) 
+  Sigma <- cov(assets); Sigma_inv <- solve(Sigma) 
+  print("Sigma correct") 
+  # compute weights 
+  weights <- Sigma_inv %*% (yearly_return - rf*rep(1, dim(Sigma)[1])) 
+  weights_scal <- weights/sum(weights); weights_scal <- as.vector(weights_scal) # ; names(weights_scal) <- colnames(assets) 
+  print("weights correct") 
+  # compute return and volatility 
+  return_TP <- t(weights_scal) %*% yearly_return; return_TP <- as.vector(return_TP) #; names(return_TP) <- "Return Portfolio" 
+  volatility_TP <- sqrt(t(weights_scal) %*% Sigma %*% weights_scal)*sqrt(260); volatility_TP <- as.vector(volatility_TP) #; names(volatility_TP) <- "Volatility Portfolio" 
+  print("return and vola correct") 
+  # return 
+  return(round(c(weights_scal, abs(return_TP), volatility_TP), 3)) 
+}
+
+
+
   
   #MVP
   output$portfolio_results <- renderText({
@@ -549,15 +602,13 @@ mvp <- function(y){
   
   #Create boxplot for TP
   output$donut_tp <- renderPlot({
-    print("YOU^re here")
     #create data frame
-    y <- popSwissr::tp(dataset6(),rf=0.01, p_year=260)
-    print("here 2")
+    #y <- tp(dataset6())
+    y <- tp(rendite_matrix(dataset5()))
     
-    y <- y[1:(length(y)-2)]
-    print("here3")
-    df <- data.frame(value=y*input$tp_amount,
-                     Anlage=rename_assets(colnames(dataset6())))
+    y2 <- y[1:(length(y)-2)]
+    df <- data.frame(value=y2*input$tp_amount,
+                     Anlage=rename_assets(colnames(dataset5())))
     
     # donut(df_donut)
     ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
