@@ -67,7 +67,7 @@ rename_assets <- function(asset){
   name
 }
 
-title <- tags$a(tags$img(src="Swisscon_Logo2.png", height="45px", id="logo"))
+title <- tags$a(tags$img(src="Swisscon_logo1.png", height="45px", id="logo"))
 
 #data up to 1970
 data_1970 <- popSwissr::convert_currencies(assets, Sys.Date()-30*365, Sys.Date())
@@ -183,7 +183,12 @@ ui <- function(request) {
                                  
                                    
                                    ),
-                          tabPanel("Tangentialportfolio"),
+                          tabPanel("Tangentialportfolio",
+                                   h2("Tangential Portfolio"),
+                                   
+                                   column(3,numericInput("tp_amount", "Amount [CHF]", value = 20000)),
+                                  
+                                   ),
                           tabPanel("Individuelles Investment"),
                           tabPanel("Kennzahlen")
                         )),
@@ -195,8 +200,16 @@ ui <- function(request) {
                           tabPanel("Kontakt",
                                    includeHTML("www/kontakt.Rhtml"),
                                    leafletOutput("map"))
-                        ))
-    ),
+                        )),
+               tabPanel(
+                 div(
+                   img(class="user_id shiny-ignore", src = "user-icon.png", height = "25px", width = "25px", style = "border-radius: 50%; "),
+                   style = "margin-bottom: 0px; padding-bottom: 0px; display: flex; line-height: 0;"
+                 )
+               )
+               
+    )
+    
     #titlePanel(h2("Test")),
     #plotOutput( "plot"),
     #sliderInput("n", "Number of observations", 1, nrow(faithful), 100),
@@ -489,7 +502,7 @@ mvp <- function(y){
       theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
             panel.grid.major = element_blank(), # remove the major grid lines
             panel.grid.minor = element_blank(), # remove the minor grid lines
-            plot.background = element_rect(fill = "transparent"), # set the plot background to white
+            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
             axis.line = element_line(color = "black"), # set the axis lines to black
             axis.text = element_text(color = "black"), # set the axis text to black
             axis.title = element_text(color = "black")) # set the axis title to black
@@ -533,7 +546,7 @@ mvp <- function(y){
             panel.border = element_blank(),
             panel.grid.major = element_blank(), # remove the major grid lines
             panel.grid.minor = element_blank(), # remove the minor grid lines
-            plot.background = element_rect(fill = "transparent"), # set the plot background to white
+            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
             #legend.background = element_blank(),
             axis.line = element_line(color = "black"), # set the axis lines to black
             axis.text = element_text(color = "black"), # set the axis text to black
