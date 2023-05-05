@@ -136,7 +136,9 @@ ui <- function(request) {
                                    column(6, 
                                           h1("MVP"),
                                           plotOutput("boxplot_mvp_my_portfolio", height= "45vh")),
-                                  column(6, h1("TP")),
+                                  column(6, 
+                                         h1("TP"),
+                                         plotOutput("boxplot_tp_my_portfolio", height= "45vh")),
                                    width ="100vh")),
                             
                           tabPanel("Kursübersicht",
@@ -202,6 +204,9 @@ ui <- function(request) {
                                    br(),
                                    column(12, plotOutput("donut_tp", height= "65vh")),
                                    br(),
+                                   fluidRow(valueBoxOutput("tp_renditeBox"),
+                                            valueBoxOutput("tp_risikoBox")),
+                                   column(12, tableOutput("TP_OUTPUT")),
                                    
                                   
                                    ),
@@ -435,24 +440,28 @@ start_date_selector <- reactive({
   })
   
   dataset6 <- reactive({
+    temp <- data_1970
+    
     assets1 <- input$assets5
     assets1 <- c(assets1, "USDCHF=X")
-    print("assets5")
-    print(assets1)
-    
+    # print("assets5")
+    # print(assets1)
+    # 
     dat_raw <- popSwissr::convert_currencies(symbols=assets1)
-    print("dat_raw:")
-    print(is(dat_raw))
+    dat_raw <- dat_raw[, !colnames(dat_raw) %in% "USDCHF.X.Adjusted"]
+    # print("dat_raw:")
+    # print(is(dat_raw))
+    # print(dat_raw)
     dat <- timeSeries::returns(dat_raw)
-    print("dat:")
-    print(is(dat))
-    print(dat)
-    #colnames(dat) <- input$assets5
-    dat
+    # print("dat:")
+    # print(is(dat))
     
-    # print("is(dat)")
-    # print(is(dat)
-    
+    colnames(dat) <- c(input$assets5)
+    # print("colnames(dat)")
+    # print(colnames(dat))
+    dat <- na.omit(dat)
+    # print(dat)
+    return(dat)
   })
   
   
@@ -496,11 +505,17 @@ mvp <- function(y){
 tp <- function(assets, rf=0.01, p_year=260){ 
   # library 
   library(expm) 
+  print("assets in TP")
+  print(assets)
   # yearly returns, volatility and covariance 
   yearly_return <- apply(X=assets*p_year, MARGIN=2, FUN=mean) 
+  print("yearly returns")
+  print(yearly_return)
+  
   yearly_volatility <- apply(X=assets*sqrt(p_year), MARGIN=2, FUN=sd) 
   Sigma <- cov(assets); Sigma_inv <- solve(Sigma) 
   print("Sigma correct") 
+  print(Sigma)
   # compute weights 
   weights <- Sigma_inv %*% (yearly_return - rf*rep(1, dim(Sigma)[1])) 
   weights_scal <- weights/sum(weights); weights_scal <- as.vector(weights_scal) # ; names(weights_scal) <- colnames(assets) 
@@ -510,6 +525,8 @@ tp <- function(assets, rf=0.01, p_year=260){
   volatility_TP <- sqrt(t(weights_scal) %*% Sigma %*% weights_scal)*sqrt(260); volatility_TP <- as.vector(volatility_TP) #; names(volatility_TP) <- "Volatility Portfolio" 
   print("return and vola correct") 
   # return 
+  print("return:")
+  print(round(c(weights_scal, abs(return_TP), volatility_TP), 3))
   return(round(c(weights_scal, abs(return_TP), volatility_TP), 3)) 
 }
 
@@ -600,15 +617,30 @@ tp <- function(assets, rf=0.01, p_year=260){
             axis.title = element_text(color = "black")) # set the axis title to black
   }, bg="transparent")
   
+  
   #Create boxplot for TP
   output$donut_tp <- renderPlot({
     #create data frame
-    #y <- tp(dataset6())
-    y <- tp(rendite_matrix(dataset5()))
+    # print("dataset6")
+    # x<- dataset6()
+    # print(x)
+    
+    y <- tp(dataset6())
+    # print("y:")
+    # print(y)
+    # print("colnames(y)")
+    # print(colnames(y))
+    # print("colnames(dataset6())")
+    # print(colnames(dataset6()))
+    #y <- tp(rendite_matrix(dataset5()))
     
     y2 <- y[1:(length(y)-2)]
+    # print("y2")
+    # print(y2)
+    # print("colnames(y)")
+    # print(colnames(y))
     df <- data.frame(value=y2*input$tp_amount,
-                     Anlage=rename_assets(colnames(dataset5())))
+                     Anlage=rename_assets(colnames(dataset6())))
     
     # donut(df_donut)
     ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
@@ -670,14 +702,52 @@ tp <- function(assets, rf=0.01, p_year=260){
             axis.title = element_text(color = "black")) # set the axis title to black
   }, bg="transparent")
   
+  #boxplot of MVP in my_portfolio-page
+  output$boxplot_mvp_my_portfolio <- renderPlot({
+    y <- mvp(rendite_matrix(dataset4()))
+    
+    y <- y[1:(length(y)-2)]
+    summe_portfolio <<- sum(my_portfolio())
+    df <- data.frame(value=y*summe_portfolio,
+                           Anlage=rename_assets(colnames(dataset4())))
+    
+    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
+      geom_bar(stat = "identity") +
+      scale_fill_brewer(palette = "YlGnBu") +
+      geom_text(aes(label = df$value), vjust = -0.5) +
+      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
+            panel.border = element_blank(),
+            panel.grid.major = element_blank(), # remove the major grid lines
+            panel.grid.minor = element_blank(), # remove the minor grid lines
+            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
+            #legend.background = element_blank(),
+            axis.line = element_line(color = "black"), # set the axis lines to black
+            axis.text = element_text(color = "black"), # set the axis text to black
+            axis.title = element_text(color = "black")) # set the axis title to black
+  }, bg="transparent")
+  
+  #Tabelle MVP
   output$MVP_OUTPUT <- renderTable({
     anteil <- mvp(rendite_matrix(dataset3()))[]
+    anteil <- anteil[1:(length(anteil)-2)]
     a <- rbind(rename_assets(colnames(dataset3()))[],paste(percent(anteil)), anteil*summe_portfolio)
     colnames(a)<-a[1,]
     a<-a[-1, ]
     a
      })
   
+  #Tabelle TP
+  output$TP_OUTPUT <- renderTable({
+    anteil <- tp(dataset6())[]
+    anteil <- anteil[1:(length(anteil)-2)]
+    betrag <- input$tp_amount
+    a <- rbind(rename_assets(colnames(dataset6()))[],paste(percent(anteil)), anteil*betrag)
+    colnames(a)<-a[1,]
+    a<-a[-1, ]
+    a
+  })
+  
+  #Box mit Rendite für MVP
   output$mvp_renditeBox <- renderValueBox({
     y <- mvp(rendite_matrix(dataset3()))
     y <- y[length(y)-1]
@@ -688,8 +758,31 @@ tp <- function(assets, rf=0.01, p_year=260){
     )
   })
   
+  #Box mit Risiko für MVP
   output$mvp_risikoBox <- renderValueBox({
     y <- mvp(rendite_matrix(dataset3()))
+    y <- y[length(y)]
+    
+    valueBox(
+      paste(y*100, "%"), "Risiko", icon = icon("warning-sign", lib = "glyphicon"),
+      color = "aqua", width = 6
+    )
+  })
+  
+  #Box mit Rendite für TP
+  output$tp_renditeBox <- renderValueBox({
+    y <- tp(dataset6())
+    y <- y[length(y)-1]
+    valueBox(
+      
+      paste(y*100, "%"), "Rendite", icon = icon("resize-vertical", lib = "glyphicon"),
+      color = "aqua", width=6
+    )
+  })
+  
+  #Box mit Risiko für TP
+  output$tp_risikoBox <- renderValueBox({
+    y <- tp(dataset6())
     y <- y[length(y)]
     
     valueBox(
@@ -729,3 +822,6 @@ tp <- function(assets, rf=0.01, p_year=260){
 }
 enableBookmarking(store = "url")
 shinyApp(ui, server)
+
+
+
