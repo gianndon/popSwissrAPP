@@ -56,7 +56,7 @@ assets2 <- c("SMI", "USD/CHF", "S&P500", "Gold", "Bitcoin USD", "CH Staatsanleih
 rename_assets <- function(asset){
   name <- c()
   for (i in asset) {
-    print(i)
+    
     for (j in 1:length(assets2)) {
       if(i==assets[j]){
         name<-c(name,assets2[j])
@@ -185,8 +185,18 @@ ui <- function(request) {
                                    ),
                           tabPanel("Tangentialportfolio",
                                    h2("Tangential Portfolio"),
-                                   
+                                   column(9, checkboxGroupInput("assets5", "Select Assets:", choices = assets1, 
+                                                                selected = assets1,
+                                                                inline=TRUE,
+                                                                #multiple = TRUE,
+                                   ), id="kursuebersicht_style"),
+                                  
                                    column(3,numericInput("tp_amount", "Amount [CHF]", value = 20000)),
+                                   
+                                   br(),
+                                   column(12, plotOutput("donut_tp", height= "65vh")),
+                                   br(),
+                                   
                                   
                                    ),
                           tabPanel("Individuelles Investment"),
@@ -390,9 +400,34 @@ start_date_selector <- reactive({
     print(assets4)
     # subset data based on selected assets
     subset_data <- temp[, assets4]
+    print(subset_data)
     
     # return xts object
     xts(subset_data, order.by = index(temp))
+    
+  })
+  
+  dataset5 <- reactive({
+    assets1 <- input$assets5
+    print("assets1")
+    print(input$assets5)
+    dat_raw <- popSwissr::convert_currencies(symbols=assets1)
+    dat <- rendite_matrix(dat_raw)
+    #colnames(dat) <- input$assets5
+    print("is(dat)")
+    print(is(dat))
+    
+    
+  })
+  
+  dataset6 <- reactive({
+    assets1 <- assets
+    dat_raw <- popSwissr::convert_currencies(symbols=assets1)
+    dat <- timeSeries::returns(dat_raw)[-1,]
+    #colnames(dat) <- input$assets5
+    print("is(dat)")
+    print(is(dat))
+    
     
   })
   
@@ -422,6 +457,8 @@ mvp <- function(y){
   #print(MVP)
   mvpreturn=t(MVP)%*%mittel
   mvpvola=sqrt(t(MVP)%*%(Sigma%*%MVP))*sqrt(365)
+  print("mvpvola")
+  print(is(mvpvola))
   #returns vector with mvp, return, and volatility
   return( round(c(MVP, mvpreturn, mvpvola),3))
   }
@@ -489,6 +526,8 @@ mvp <- function(y){
   output$donut_mvp <- renderPlot({
     #create data frame
     y <- mvp(rendite_matrix(dataset3()))
+    print("MVP is")
+    print(is(y))
     
     y <- y[1:(length(y)-2)]
     df <- data.frame(value=y*input$mvp_amount,
@@ -508,10 +547,37 @@ mvp <- function(y){
             axis.title = element_text(color = "black")) # set the axis title to black
   }, bg="transparent")
   
+  #Create boxplot for TP
+  output$donut_tp <- renderPlot({
+    print("YOU^re here")
+    #create data frame
+    y <- popSwissr::tp(dataset6(),rf=0.01, p_year=260)
+    print("here 2")
+    
+    y <- y[1:(length(y)-2)]
+    print("here3")
+    df <- data.frame(value=y*input$tp_amount,
+                     Anlage=rename_assets(colnames(dataset6())))
+    
+    # donut(df_donut)
+    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
+      geom_bar(stat = "identity") +
+      scale_fill_brewer(palette = "YlGnBu") +
+      geom_text(aes(label = df$value), vjust = -0.5) +
+      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
+            panel.grid.major = element_blank(), # remove the major grid lines
+            panel.grid.minor = element_blank(), # remove the minor grid lines
+            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
+            axis.line = element_line(color = "black"), # set the axis lines to black
+            axis.text = element_text(color = "black"), # set the axis text to black
+            axis.title = element_text(color = "black")) # set the axis title to black
+  }, bg="transparent")
+  
   #MVP Matrix Mein Portfolio
   output$donut_mvp_my_portfolio <- renderPlot({
     #create data frame
     y <- mvp(rendite_matrix(dataset4()))
+    
     
     y <- y[1:(length(y)-2)]
     summe_portfolio <<- sum(my_portfolio())
@@ -537,7 +603,7 @@ mvp <- function(y){
     summe_portfolio <<- sum(my_portfolio())
     df <- data.frame(value=y*summe_portfolio,
                            Anlage=rename_assets(colnames(dataset4())))
-    print(df)
+    
     ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
       geom_bar(stat = "identity") +
       scale_fill_brewer(palette = "YlGnBu") +
