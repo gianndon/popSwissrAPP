@@ -209,12 +209,13 @@ ui <- function(request) {
                           
                           tabPanel("Minimum Varianz Portfolio",
                                    h2("Minimum Varianz Portfolio"),
-                                   column(9, checkboxGroupInput("assets3", "Select Assets:", choices = assets1, 
-                                                                selected = assets1,
+                                   column(9, checkboxGroupInput("assets3", "Select Assets:", choices = assets3, 
+                                                                selected = assets3,
                                                                 inline=TRUE,
                                                                 #multiple = TRUE,
                                    ), id="kursuebersicht_style"),
-                                   column(3,numericInput("mvp_amount", "Amount [CHF]", value = 20000)),
+                                   column(2,numericInput("mvp_amount", "Amount [CHF]", value = 20000)),
+                                   column(1,checkboxInput("shorting_mvp", "shorting" )),
                                    
                                    br(),
                                    column(12, plotOutput("donut_mvp", height= "65vh")),
@@ -244,8 +245,27 @@ ui <- function(request) {
                                    
                                   
                                    ),
-                          tabPanel("Individuelles Investment"),
-                          tabPanel("Kennzahlen")
+                          tabPanel("Individuelles Investment",
+                                   h1("Individuelles Investment"),
+                                     #create input for portfolio with input field
+                                     column(3,numericInput("smi2", "SMI Index [CHF]", value = 20000)),
+                                     column(3,numericInput("ch_gov_bonds2", "CH-Staatsanleihen [CHF]", value = 2000)),
+                                     column(3,numericInput("gold2", "Gold [CHF]", value = 2000)),
+                                     column(3,numericInput("bitcoin2", "Bitcoin [CHF]", value = 18000)),
+                                     column(3,numericInput("us_gov_bonds2", "US Staatsanleihen [CHF]", value = 5000)),
+                                     column(3,numericInput("sp5002", "SP500 [CHF]", value = 1000)),
+                                     column(3,),
+                                   column(12, plotOutput("boxplot_indiv", height= "65vh")),
+                                   
+                                   fluidRow(valueBoxOutput("indiv_renditeBox"),
+                                            valueBoxOutput("indiv_risikoBox")),
+                                   column(12, tableOutput("INDIV_OUTPUT")),
+                                   
+                                   
+                                   ),
+                          tabPanel("Kennzahlen",
+                                   h1("Kennzahlen"),
+                                   )
                         )),
                tabPanel("Über uns", 
                         tabsetPanel(
@@ -422,14 +442,36 @@ start_date_selector <- reactive({
   })
   dataset3 <- reactive({
     temp <- data_1970
-    colnames(temp) <- assets
-    temp
     
-    # subset data based on selected assets
-    subset_data <- temp[, input$assets3]
+    assets1 <- input$assets3
+    assets1 <- c(assets1, "USDCHF=X")
+    # print("assets5")
+    # print(assets1)
+    # 
+    dat_raw <- popSwissr::convert_currencies(symbols=assets1)
+    dat_raw <- dat_raw[, !colnames(dat_raw) %in% "USDCHF.X.Adjusted"]
+    # print("dat_raw:")
+    # print(is(dat_raw))
+    # print(dat_raw)
+    dat <- timeSeries::returns(dat_raw)
+    # print("dat:")
+    # print(is(dat))
     
-    # return xts object
-    xts(subset_data, order.by = index(temp))
+    colnames(dat) <- c(input$assets3)
+    # print("colnames(dat)")
+    # print(colnames(dat))
+    dat <- na.omit(dat)
+    # print(dat)
+    return(dat)
+    
+    # colnames(temp) <- assets
+    # temp
+    # 
+    # # subset data based on selected assets
+    # subset_data <- temp[, input$assets3]
+    # 
+    # # return xts object
+    # xts(subset_data, order.by = index(temp))
     
   })
   
@@ -527,6 +569,33 @@ start_date_selector <- reactive({
     return(dat)
   })
   
+  dataset8 <- reactive({
+    temp <- data_1970
+    assets1 <- assets3
+    assets1 <- c(assets1, "USDCHF=X")
+    # print("assets5")
+    # print(assets1)
+    # 
+    dat_raw <- popSwissr::convert_currencies(symbols=assets1)
+    dat_raw <- dat_raw[, !colnames(dat_raw) %in% "USDCHF.X.Adjusted"]
+    # print("dat_raw:")
+    # print(is(dat_raw))
+    # print(dat_raw)
+    dat <- timeSeries::returns(dat_raw)
+    
+    colnames(dat) <- assets3
+    # print("colnames(dat)")
+    # print(colnames(dat))
+    dat <- na.omit(dat)
+    return(dat)
+  })
+  
+  #changes in individual investment
+  indiv_change <- reactive({
+    amounts <- c(input$smi2,input$sp5002, input$gold2, input$bitcoin2, input$ch_gov_bonds2, input$us_gov_bonds2)
+    return(amounts)
+  })
+  
   
 
     
@@ -542,6 +611,16 @@ start_date_selector <- reactive({
   }, bg="transparent"  )
   
   #reactive(print(my_portfolio()))
+  
+  #Individuelles Investment funktion
+  indiv <- function(assets, amounts, p_year=260){
+    Sigma <- cov(assets)
+    r <- apply(X=assets*p_year, MARGIN=2, FUN=mean)
+    weights <- amounts/sum(amounts)
+    r_pf <- t(weights) %*% r
+    v_pf <- sqrt(t(weights) %*% Sigma %*% weights)*sqrt(p_year)
+    return(c(weights, r_pf, v_pf))
+  }
   
   # Rendite Maximieren Funktion v_opt
   v_opt <- function(assets, v_pf, shorting, p_year=260){
@@ -805,7 +884,8 @@ tp <- function(assets, rf=0.01, p_year=260){
   
   output$donut_mvp <- renderPlot({
     #create data frame
-    y <- mvp(rendite_matrix(dataset3()))
+    #y <- mvp(rendite_matrix(dataset3()))
+    y <- popSwissr::mvp_opt( assets=dataset3(), shorting = input$shorting_mvp, p_year=260)
     print("MVP is")
     print(is(y))
     
@@ -904,6 +984,35 @@ tp <- function(assets, rf=0.01, p_year=260){
             axis.title = element_text(color = "black")) # set the axis title to black
   }, bg="transparent")
   
+  #Individuelles Investment Boxplot
+  output$boxplot_indiv <- renderPlot({
+    print("indiv")
+    amount_indiv <- indiv_change()
+    print(indiv_change())
+    y <- indiv(dataset8(), amount_indiv)
+    print(y)
+    print("indiv2")
+    y2 <- y[1:(length(y)-2)]
+    print("here1")
+    
+    df <- data.frame(value=y2*sum(amount_indiv),
+                     Anlage=rename_assets(colnames(dataset8())))
+    print("here2")
+    
+    # donut(df_donut)
+    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
+      geom_bar(stat = "identity") +
+      scale_fill_brewer(palette = "YlGnBu") +
+      geom_text(aes(label = df$value), vjust = -0.5) +
+      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
+            panel.grid.major = element_blank(), # remove the major grid lines
+            panel.grid.minor = element_blank(), # remove the minor grid lines
+            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
+            axis.line = element_line(color = "black"), # set the axis lines to black
+            axis.text = element_text(color = "black"), # set the axis text to black
+            axis.title = element_text(color = "black")) # set the axis title to black
+  }, bg="transparent")
+  
   #MVP Matrix Mein Portfolio
   output$donut_mvp_my_portfolio <- renderPlot({
     #create data frame
@@ -976,7 +1085,7 @@ tp <- function(assets, rf=0.01, p_year=260){
   
   #Tabelle MVP
   output$MVP_OUTPUT <- renderTable({
-    anteil <- mvp(rendite_matrix(dataset3()))[]
+    anteil <- mvp(dataset3())[]
     anteil <- anteil[1:(length(anteil)-2)]
     a <- rbind(rename_assets(colnames(dataset3()))[],paste(percent(anteil)), anteil*summe_portfolio)
     colnames(a)<-a[1,]
@@ -997,7 +1106,7 @@ tp <- function(assets, rf=0.01, p_year=260){
   
   #Box mit Rendite für MVP
   output$mvp_renditeBox <- renderValueBox({
-    y <- mvp(rendite_matrix(dataset3()))
+    y <- mvp(dataset3())
     y <- y[length(y)-1]
     valueBox(
       
@@ -1008,7 +1117,7 @@ tp <- function(assets, rf=0.01, p_year=260){
   
   #Box mit Risiko für MVP
   output$mvp_risikoBox <- renderValueBox({
-    y <- mvp(rendite_matrix(dataset3()))
+    y <- mvp(dataset3())
     y <- y[length(y)]
     
     valueBox(
@@ -1065,6 +1174,40 @@ tp <- function(assets, rf=0.01, p_year=260){
       #addMarkers(lng = current_location()[2], lat = current_location()[1], popup = "Aktueller Standort") %>%
       #setView(current_location(), zoom = 10)
       setView(lng = 8.72923, lat = 47.49732, zoom = 13)
+  })
+  
+  
+  #Box mit Rendite für INDIViduelles
+  output$indiv_renditeBox <- renderValueBox({
+    y <- indiv(dataset8(), indiv_change())
+    y <- y[length(y)-1]
+    valueBox(
+      
+      paste(y*100, "%"), "Rendite", icon = icon("resize-vertical", lib = "glyphicon"),
+      color = "aqua", width=6
+    )
+  })
+  
+  #Box mit Risiko für Individuelles
+  output$indiv_risikoBox <- renderValueBox({
+    y <- indiv(dataset8(), indiv_change())
+    y <- y[length(y)]
+    
+    valueBox(
+      paste(y*100, "%"), "Risiko", icon = icon("warning-sign", lib = "glyphicon"),
+      color = "aqua", width = 6
+    )
+  })
+  
+  #Tabelle Individuelles
+  output$INDIV_OUTPUT <- renderTable({
+    anteil <- indiv(dataset8(), indiv_change())[]
+    anteil <- anteil[1:(length(anteil)-2)]
+    betrag <- sum(indiv_change())
+    a <- rbind(rename_assets(colnames(dataset8()))[],paste(percent(anteil)), anteil*betrag)
+    colnames(a)<-a[1,]
+    a<-a[-1, ]
+    a
   })
   
 }
