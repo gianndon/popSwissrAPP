@@ -104,7 +104,8 @@ pre{
 }*/
 
 h2 {
-  color:#be9e44;
+  /*color:#be9e44;*/
+  color: #333;
   font-family: 'Yusei Magic', sans-serif;
   font-weight: bold;
   display: block;
@@ -120,7 +121,8 @@ body > div > nav .nav.navbar-nav {
         }
 /*navbar color on hover*/
 .navbar-default .navbar-nav>li>a {
-    color: #CBB26a;
+   /* color: #CBB26a; */
+   color: #333;
 }  
 
 /* font size navbar elements  */
@@ -167,7 +169,8 @@ label{
 }
 
 a {
-    color: #d8c690;
+   /* color: #d8c690;*/
+   color: #333;
     text-decoration: none;
 }
 

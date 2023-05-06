@@ -50,11 +50,11 @@ abbreviate2 <- function(x) {
 
 
 # Specify the assets and date range
-assets <- c("^SSMI", "USDCHF=X", "^GSPC", "GC=F", "BTC-USD", "CSBGC0.SW", "^TNX")
+assets <- c("^SSMI", "USDCHF=X", "^GSPC", "GC=F", "BTC-USD", "SREN.SW", "^TNX")
                 #c("SMI", "USD / CHF", "S&P500", " ", "Bitcoin USD", " ", " ", " "))
-assets1 <- c("SMI"="^SSMI", "USD/CHF"="USDCHF=X", "S&P500"="^GSPC", "Gold"="GC=F", "Bitcoin USD"="BTC-USD", "CH Staatsanleihen"="CSBGC0.SW", "US Staatsanleihen"="^TNX")
+assets1 <- c("SMI"="^SSMI", "USD/CHF"="USDCHF=X", "S&P500"="^GSPC", "Gold"="GC=F", "Bitcoin USD"="BTC-USD", "CH Staatsanleihen"="SREN.SW", "US Staatsanleihen"="^TNX")
 assets2 <- c("SMI", "USD/CHF", "S&P500", "Gold", "Bitcoin USD", "CH Staatsanleihen", "US Staatsanleihen")
-assets3 <- c("SMI"="^SSMI", "S&P500"="^GSPC", "Gold"="GC=F", "Bitcoin USD"="BTC-USD", "CH Staatsanleihen"="CSBGC0.SW", "US Staatsanleihen"="^TNX")
+assets3 <- c("SMI"="^SSMI", "S&P500"="^GSPC", "Gold"="GC=F", "Bitcoin USD"="BTC-USD", "CH Staatsanleihen"="SREN.SW", "US Staatsanleihen"="^TNX")
 
 
 
@@ -145,7 +145,7 @@ ui <- function(request) {
                           tabPanel("Kursübersicht",
                                    dataTableOutput("test"),
                                    #fluidRow(),
-                                   titlePanel("Kursübersicht für SMI, S&P500, Gold,..."),
+                                   titlePanel("Kursübersicht "),
                                    #sidebarLayout(
                                      #sidebarPanel(
                                        # selectInput("period", "Select period:",
@@ -173,7 +173,40 @@ ui <- function(request) {
                         
                       tabPanel("Investment",  
                         tabsetPanel(id="tabsetPanel",
-                          tabPanel("Rendite Maximieren / Risiko Minimieren"),
+                          tabPanel("Rendite Maximieren / Risiko Minimieren",
+                                   column(9, checkboxGroupInput("assets_rendite", "Select Assets:", choices = assets3, 
+                                                                selected = assets3,
+                                                                inline=TRUE,
+                                                                #multiple = TRUE,
+                                   ), id="kursuebersicht_style"),
+                                   column(3,numericInput("rendite_amount", "Amount [CHF]", value = 20000)),
+                                   
+                          
+                                   column(6, 
+                                          h1("Rendite Maximieren"),
+                                          sliderInput("slider_rendite",
+                                                      "Risiko",
+                                                      min=0,
+                                                      max=0.5,
+                                                      value=0.05,
+                                                      step=0.01),
+                                          checkboxInput("shorting_rendite", "shorting" ),
+                                          column(12, plotOutput("boxplot_rendite", height= "65vh")),
+                                          
+                                   ),
+                                   column(6, 
+                                          h1("Risiko Minimieren"),
+                                          sliderInput("slider_risiko",
+                                                      "Rendite",
+                                                      min=0,
+                                                      max=0.5,
+                                                      value=0.05,
+                                                      step=0.01),
+                                   checkboxInput("shorting_risiko", "shorting" ),
+                                   column(12, plotOutput("boxplot_risiko", height= "65vh")),
+                                   
+                          )),
+                          
                           tabPanel("Minimum Varianz Portfolio",
                                    h2("Minimum Varianz Portfolio"),
                                    column(9, checkboxGroupInput("assets3", "Select Assets:", choices = assets1, 
@@ -259,7 +292,7 @@ server <- function(input, output, session) {
     
   })
   
-  #c("SMI"="^SSMI", "USD/CHF"="USDCHF=X", "S&P500"="^GSPC", "Gold"="GC=F", "Bitcoin USD"="BTC-USD", "CH Staatsanleihen"="CSBGC0.SW", "US Staatsanleihen"="^TNX")
+  #c("SMI"="^SSMI", "USD/CHF"="USDCHF=X", "S&P500"="^GSPC", "Gold"="GC=F", "Bitcoin USD"="BTC-USD", "CH Staatsanleihen"="SREN.SW", "US Staatsanleihen"="^TNX")
   smi_port <- reactive({input$smi})
   sp500_port <- reactive({input$sp500})
   ch_gov_bonds_port <- reactive({input$ch_gov_bonds})
@@ -469,6 +502,31 @@ start_date_selector <- reactive({
     return(dat)
   })
   
+  dataset7 <- reactive({
+    temp <- data_1970
+    
+    assets1 <- input$assets_rendite
+    assets1 <- c(assets1, "USDCHF=X")
+    # print("assets5")
+    # print(assets1)
+    # 
+    dat_raw <- popSwissr::convert_currencies(symbols=assets1)
+    dat_raw <- dat_raw[, !colnames(dat_raw) %in% "USDCHF.X.Adjusted"]
+    # print("dat_raw:")
+    # print(is(dat_raw))
+    # print(dat_raw)
+    dat <- timeSeries::returns(dat_raw)
+    print("dat:")
+    print(is(dat))
+    
+    colnames(dat) <- c(input$assets_rendite)
+    # print("colnames(dat)")
+    # print(colnames(dat))
+    dat <- na.omit(dat)
+    print(dat)
+    return(dat)
+  })
+  
   
 
     
@@ -478,12 +536,159 @@ start_date_selector <- reactive({
     
     coulours <- brewer.pal(8, "Dark2")
     plot.xts(dataset2(), bg="transparent", col=coulours, col.lab="gold2", labels.col="navyblue", cex.axis=1.3 , lwd=3)
-    addLegend("topleft", lty=1, lwd=2)
+    #addLegend("topleft", lty=1, lwd=2)
     
    
   }, bg="transparent"  )
   
   #reactive(print(my_portfolio()))
+  
+  # Rendite Maximieren Funktion v_opt
+  v_opt <- function(assets, v_pf, shorting, p_year=260){
+    
+    lb <- NA
+    ub <- NA
+    # import library
+    library(nloptr)
+    
+    # yearly returns, volatility and covariance
+    r <- apply(X=assets*p_year, MARGIN=2, FUN=mean)
+    print("v_opt1")
+    # compute covariance matrix
+    Sigma <- p_year*cov(assets)
+
+    # number of assets
+    n <- ncol(Sigma)
+    
+    print("v_opt2")
+    
+    # Objective function
+    eval_f <- function(x, Sigma, r, v_pf){
+      return(t(x) %*% r)
+    }
+    print("v_opt3")
+    
+    # Constraint
+    eval_g_eq <- function(x, Sigma, r, v_pf){
+      constr <- c(sum(x) - 1,
+                  sqrt(t(x) %*% Sigma %*% x) - v_pf)
+      return(constr)
+    }
+    print("v_opt4")
+    
+    # lower and upper bounds, with distinction whether shorting is allowed or not
+    if(shorting == TRUE){
+      lb <- rep(-3, n)
+      ub <- rep(3, n)
+    }else{
+      lb <- rep(0, n)
+      ub <- rep(1, n)
+    }
+    
+    print("v_opt5")
+    
+    # Initial weights
+    x0 <- rep(1/n, n)
+    
+    # set optimization options.
+    opts <- list("algorithm"="NLOPT_GN_ISRES",
+                 "xtol_rel"=1.0e-15,
+                 "maxeval"=160000,
+                 "local_opts"=list("algorithm"="NLOPT_LD_MMA", 
+                                   "xtol_rel"=1.0e-15),
+                 "print_level"=0)
+    
+    # optimization
+    res <- nloptr (x0=x0,
+                   eval_f=eval_f,
+                   lb=lb,
+                   ub=ub,
+                   eval_g_eq=eval_g_eq,
+                   opts=opts, 
+                   Sigma=Sigma,
+                   r=r,
+                   v_pf=v_pf)
+    
+    # results
+    weights_scal <- res$solution
+    pf_return <- as.vector(abs(t(weights_scal) %*% r))
+    pf_vola <- v_pf
+    
+    # return
+    return(c(weights_scal, abs(pf_return), pf_vola))
+  }
+  
+  #Risiko Minimieren Funktion r_opt
+  r_opt <- function(assets, r_pf, shorting=TRUE, p_year=260){
+    # import library
+    library(nloptr)
+    
+    # yearly returns, volatility and covariance
+    r <- apply(X=assets*p_year, MARGIN=2, FUN=mean)
+    # compute covariance matrix
+    Sigma <- cov(assets)
+    # number of assets
+    n <- ncol(Sigma)
+    
+    # minimize risk
+    # objective function
+    eval_f <- function(x, Sigma, r, r_pf){
+      # !important!: x = weights
+      return(sqrt(t(x) %*% Sigma %*% x))
+    }
+    
+    # lower and upper bounds, with distinction whether shorting is allowed or not
+    if(shorting == TRUE){
+      lb <- rep(-10, n)
+      ub <- rep(10, n)
+    }else{
+      lb <- rep(0, n)
+      ub <- rep(1, n)
+    }
+    
+    # Constraints
+    eval_g_eq <- function(x, Sigma, r, r_pf){
+      # !important!: x = weights
+      constr <- c(sum(x) - 1,
+                  x %*% r - r_pf)
+      return(constr)
+    }
+    
+    # Initial weights
+    x0 <- rep(1/n, n)
+    
+    # set optimization options
+    opts <- list("algorithm"="NLOPT_GN_ISRES",
+                 "xtol_rel"=1.0e-15,
+                 "maxeval"=160000,
+                 "local_opts"=list("algorithm"="NLOPT_LD_MMA",
+                                   "xtol_rel"=1.0e-15 ),
+                 "print_level"=0)
+    
+    # optimization
+    res <- nloptr(x0=x0,
+                  eval_f = eval_f,
+                  lb = lb,
+                  ub = ub,
+                  # eval_g_ineq = eval_g_ineq,
+                  eval_g_eq = eval_g_eq,
+                  opts = opts, 
+                  Sigma = Sigma,
+                  r = r,
+                  r_pf = r_pf
+    )
+    
+    
+    # results
+    weights_scal <- res$solution
+    pf_return <- r_pf
+    pf_vola <- as.vector(sqrt(t(weights_scal) %*% Sigma %*% weights_scal)*sqrt(p_year))
+    
+    # return
+    return(c(weights_scal, abs(pf_return), pf_vola))
+  }
+  
+  
  
   
   #MVP Calculation 
@@ -625,27 +830,65 @@ tp <- function(assets, rf=0.01, p_year=260){
   
   #Create boxplot for TP
   output$donut_tp <- renderPlot({
-    #create data frame
-    # print("dataset6")
-    # x<- dataset6()
-    # print(x)
-    
     y <- tp(dataset6())
-    # print("y:")
-    # print(y)
-    # print("colnames(y)")
-    # print(colnames(y))
-    # print("colnames(dataset6())")
-    # print(colnames(dataset6()))
-    #y <- tp(rendite_matrix(dataset5()))
-    
-    y2 <- y[1:(length(y)-2)]
-    # print("y2")
-    # print(y2)
-    # print("colnames(y)")
-    # print(colnames(y))
+        y2 <- y[1:(length(y)-2)]
+
     df <- data.frame(value=y2*input$tp_amount,
                      Anlage=rename_assets(colnames(dataset6())))
+    
+    # donut(df_donut)
+    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
+      geom_bar(stat = "identity") +
+      scale_fill_brewer(palette = "YlGnBu") +
+      geom_text(aes(label = df$value), vjust = -0.5) +
+      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
+            panel.grid.major = element_blank(), # remove the major grid lines
+            panel.grid.minor = element_blank(), # remove the minor grid lines
+            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
+            axis.line = element_line(color = "black"), # set the axis lines to black
+            axis.text = element_text(color = "black"), # set the axis text to black
+            axis.title = element_text(color = "black")) # set the axis title to black
+  }, bg="transparent")
+  
+  #Create boxplot for Rendite Maximieren
+  output$boxplot_rendite <- renderPlot({
+    print(input$slider_rendite)
+    print(input$shorting_rendite)
+    y <- v_opt(assets=dataset7(), v_pf=input$slider_rendite, shorting=input$shorting_rendite, p_year=260)
+    print("here0")
+    y2 <- y[1:(length(y)-2)]
+    print("here1")
+    
+    df <- data.frame(value=y2*input$rendite_amount,
+                     Anlage=rename_assets(colnames(dataset7())))
+    print("here2")
+    
+    # donut(df_donut)
+    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
+      geom_bar(stat = "identity") +
+      scale_fill_brewer(palette = "YlGnBu") +
+      geom_text(aes(label = df$value), vjust = -0.5) +
+      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
+            panel.grid.major = element_blank(), # remove the major grid lines
+            panel.grid.minor = element_blank(), # remove the minor grid lines
+            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
+            axis.line = element_line(color = "black"), # set the axis lines to black
+            axis.text = element_text(color = "black"), # set the axis text to black
+            axis.title = element_text(color = "black")) # set the axis title to black
+  }, bg="transparent")
+  
+  #Create boxplot for Risiko Minimieren
+  output$boxplot_risiko <- renderPlot({
+    print(input$slider_rendite)
+    print(input$shorting_rendite)
+    y <- r_opt(assets=dataset7(), r_pf=input$slider_risiko, shorting=input$shorting_risiko, p_year=260)
+    print("here0")
+    y2 <- y[1:(length(y)-2)]
+    print("here1")
+    
+    df <- data.frame(value=y2*input$rendite_amount,
+                     Anlage=rename_assets(colnames(dataset7())))
+    print("here2")
     
     # donut(df_donut)
     ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
