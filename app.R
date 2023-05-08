@@ -77,8 +77,28 @@ title <- tags$a(tags$img(src="Swisscon_logo1.png", height="45px", id="logo"))
 
 #data up to 1970
 data_1970 <- popSwissr::convert_currencies(assets, Sys.Date()-30*365, Sys.Date())
+dat_1970 <- timeSeries::returns(data_1970, na.rm=TRUE)[-1,]
+colnames(dat_1970) <- assets
+dat_1970 <- dat_1970[,-2]
 
 
+#select the wanted assets
+cut_1970 <- function(data){
+  name <- c()
+  for (i in data) {
+    
+    for (j in 1:length(assets)) {
+      if(i==assets[j]){
+        name<-c(name,assets[j])
+      }
+    }
+    
+  }
+  print("cut 1970")
+  print(dat_1970[,name])
+  return(dat_1970[,name])
+  
+}
 #smi_data <- getSymbols("^SSMI", auto.assign = FALSE)
 
 # Define the user interface
@@ -192,6 +212,9 @@ ui <- function(request) {
                                                       step=0.01),
                                           checkboxInput("shorting_rendite", "shorting" ),
                                           column(12, plotOutput("boxplot_rendite", height= "65vh")),
+                                          fluidRow(valueBoxOutput("rendite_renditeBox"),
+                                                   valueBoxOutput("rendite_risikoBox")),
+                                          column(12, tableOutput("RENDITE_OUTPUT")),
                                           
                                    ),
                                    column(6, 
@@ -256,6 +279,8 @@ ui <- function(request) {
                                      column(3,numericInput("sp5002", "SP500 [CHF]", value = 1000)),
                                      column(3,),
                                    column(12, plotOutput("boxplot_indiv", height= "65vh")),
+                                   actionButton("plotEfficient", "Übersicht des Investments auf der Kurve"),
+                                   column(12, plotOutput("effeicient_indiv", height= "65vh")),
                                    
                                    fluidRow(valueBoxOutput("indiv_renditeBox"),
                                             valueBoxOutput("indiv_risikoBox")),
@@ -440,6 +465,7 @@ start_date_selector <- reactive({
     xts(subset_data, order.by = index(temp))
     
   })
+  
   dataset3 <- reactive({
     temp <- data_1970
     
@@ -519,75 +545,71 @@ start_date_selector <- reactive({
     
   })
   
+  #dataset for TP
   dataset6 <- reactive({
-    temp <- data_1970
-    
-    assets1 <- input$assets5
-    assets1 <- c(assets1, "USDCHF=X")
-    # print("assets5")
-    # print(assets1)
+    # temp <- data_1970
     # 
-    dat_raw <- popSwissr::convert_currencies(symbols=assets1)
-    dat_raw <- dat_raw[, !colnames(dat_raw) %in% "USDCHF.X.Adjusted"]
-    # print("dat_raw:")
-    # print(is(dat_raw))
-    # print(dat_raw)
-    dat <- timeSeries::returns(dat_raw)
-    # print("dat:")
-    # print(is(dat))
+    # assets1 <- input$assets5
+    # assets1 <- c(assets1, "USDCHF=X")
+    # dat_raw <- popSwissr::convert_currencies(symbols=assets1)
+    # dat_raw <- dat_raw[, !colnames(dat_raw) %in% "USDCHF.X.Adjusted"]
+    # dat <- timeSeries::returns(dat_raw)
+    # 
+    # colnames(dat) <- c(input$assets5)
+    # dat <- na.omit(dat)
+    # return(dat)
     
-    colnames(dat) <- c(input$assets5)
-    # print("colnames(dat)")
-    # print(colnames(dat))
-    dat <- na.omit(dat)
-    # print(dat)
-    return(dat)
+    return(cut_1970(input$assets5))
   })
   
   dataset7 <- reactive({
-    temp <- data_1970
-    
-    assets1 <- input$assets_rendite
-    assets1 <- c(assets1, "USDCHF=X")
-    # print("assets5")
-    # print(assets1)
+    # temp <- data_1970
     # 
-    dat_raw <- popSwissr::convert_currencies(symbols=assets1)
-    dat_raw <- dat_raw[, !colnames(dat_raw) %in% "USDCHF.X.Adjusted"]
-    # print("dat_raw:")
-    # print(is(dat_raw))
-    # print(dat_raw)
-    dat <- timeSeries::returns(dat_raw)
-    print("dat:")
-    print(is(dat))
+    # assets1 <- input$assets_rendite
+    # assets1 <- c(assets1, "USDCHF=X")
+    # # print("assets5")
+    # # print(assets1)
+    # # 
+    # dat_raw <- popSwissr::convert_currencies(symbols=assets1)
+    # dat_raw <- dat_raw[, !colnames(dat_raw) %in% "USDCHF.X.Adjusted"]
+    # # print("dat_raw:")
+    # # print(is(dat_raw))
+    # # print(dat_raw)
+    # dat <- timeSeries::returns(dat_raw)
+    # print("dat:")
+    # print(is(dat))
+    # 
+    # colnames(dat) <- c(input$assets_rendite)
+    # # print("colnames(dat)")
+    # # print(colnames(dat))
+    # dat <- na.omit(dat)
+    # print(dat)
+    # return(dat)
     
-    colnames(dat) <- c(input$assets_rendite)
-    # print("colnames(dat)")
-    # print(colnames(dat))
-    dat <- na.omit(dat)
-    print(dat)
-    return(dat)
+    return(cut_1970(input$assets_rendite))
   })
   
   dataset8 <- reactive({
-    temp <- data_1970
-    assets1 <- assets3
-    assets1 <- c(assets1, "USDCHF=X")
-    # print("assets5")
-    # print(assets1)
+    # temp <- data_1970
+    # assets1 <- assets3
+    # assets1 <- c(assets1, "USDCHF=X")
+    # # print("assets5")
+    # # print(assets1)
+    # # 
+    # dat_raw <- popSwissr::convert_currencies(symbols=assets1)
+    # dat_raw <- dat_raw[, !colnames(dat_raw) %in% "USDCHF.X.Adjusted"]
+    # # print("dat_raw:")
+    # # print(is(dat_raw))
+    # # print(dat_raw)
+    # dat <- timeSeries::returns(dat_raw)
     # 
-    dat_raw <- popSwissr::convert_currencies(symbols=assets1)
-    dat_raw <- dat_raw[, !colnames(dat_raw) %in% "USDCHF.X.Adjusted"]
-    # print("dat_raw:")
-    # print(is(dat_raw))
-    # print(dat_raw)
-    dat <- timeSeries::returns(dat_raw)
+    # colnames(dat) <- assets3
+    # # print("colnames(dat)")
+    # # print(colnames(dat))
+    # dat <- na.omit(dat)
+    # return(dat)
     
-    colnames(dat) <- assets3
-    # print("colnames(dat)")
-    # print(colnames(dat))
-    dat <- na.omit(dat)
-    return(dat)
+    return(cut_1970(input$assets3))
   })
   
   #changes in individual investment
@@ -672,11 +694,11 @@ start_date_selector <- reactive({
     # set optimization options.
     opts <- list("algorithm"="NLOPT_GN_ISRES",
                  "xtol_rel"=1.0e-15,
-                 "maxeval"=160000,
+                 "maxeval"=1600,
                  "local_opts"=list("algorithm"="NLOPT_LD_MMA", 
                                    "xtol_rel"=1.0e-15),
                  "print_level"=0)
-    
+    print("v_opt6")
     # optimization
     res <- nloptr (x0=x0,
                    eval_f=eval_f,
@@ -687,15 +709,20 @@ start_date_selector <- reactive({
                    Sigma=Sigma,
                    r=r,
                    v_pf=v_pf)
-    
+    print("v_opt7")
     # results
     weights_scal <- res$solution
     pf_return <- as.vector(abs(t(weights_scal) %*% r))
     pf_vola <- v_pf
     
     # return
-    return(c(weights_scal, abs(pf_return), pf_vola))
+    return(round(c(weights_scal, abs(pf_return), pf_vola),3))
   }
+  
+  #V_OPT reaktives element
+  V_OPT_Rendite <- reactive({
+    return(v_opt(assets=dataset7(), v_pf=input$slider_rendite, shorting=input$shorting_rendite, p_year=260))
+  })
   
   #Risiko Minimieren Funktion r_opt
   r_opt <- function(assets, r_pf, shorting=TRUE, p_year=260){
@@ -739,7 +766,7 @@ start_date_selector <- reactive({
     # set optimization options
     opts <- list("algorithm"="NLOPT_GN_ISRES",
                  "xtol_rel"=1.0e-15,
-                 "maxeval"=160000,
+                 "maxeval"=1600,
                  "local_opts"=list("algorithm"="NLOPT_LD_MMA",
                                    "xtol_rel"=1.0e-15 ),
                  "print_level"=0)
@@ -764,7 +791,7 @@ start_date_selector <- reactive({
     pf_vola <- as.vector(sqrt(t(weights_scal) %*% Sigma %*% weights_scal)*sqrt(p_year))
     
     # return
-    return(c(weights_scal, abs(pf_return), pf_vola))
+    return(round(c(weights_scal, abs(pf_return), pf_vola),3))
   }
   
   
@@ -835,6 +862,131 @@ tp <- function(assets, rf=0.01, p_year=260){
     
     
   })
+  
+  
+  #Plot Efficient Frontier for Individual
+  plot_efficient_indiv <- function(dat, amounts, p_year= 260){
+    # definitions ----
+    yearly_returns <- apply(X=dat*260, MARGIN=2, FUN=mean)
+    Sigma <- cov(dat)
+    
+    
+    # compute mvp & tp weight, returns and volatiolites ----
+    # mvp
+    mvp_s <- popSwissr::mvp_opt(assets=round(dat,3), shorting=TRUE)  # ; mvp_s <- c(mvp_s$mvp_weights, mvp_s$mvp_return, mvp_s$mvp_vola); mvp_s
+    mvp_ns <- popSwissr::mvp_opt(assets=round(dat,3), shorting=FALSE)  # ; mvp_ns <- c(mvp_ns$mvp_weights, mvp_ns$mvp_return, mvp_ns$mvp_vola); mvp_ns
+    # tp
+    tp_n <- tp(assets=dat)  # ; tp_n <- c(tp_n$weights, tp_n$return, tp_n$volatility); tp_n <- unname(tp_n); tp_n
+    # individual
+    individ <- indiv(assets=dat, amounts=amounts)
+    
+    
+    # generate data frame ----
+    dat_cl <- data.frame(MVP_opt_short=mvp_s,
+                         MVP_opt_not_short=mvp_ns,
+                         TP_normal_function_short=tp_n,
+                         individual=individ)
+    #row.names(dat_cl) <- c(names(dat[,-2]), "return", "vola"); dat_cl
+    
+    
+    # plot variables for efficient frontier ----
+    # define an alpha sequence
+    alpha <- seq(-1, 3, 0.01)
+    # calculate portfolio weights with different alphas (therefore the %o% = outter product is needed)
+    w_pf <- alpha %o% popSwissr::mvp_opt(assets=dat)[1:(nrow(dat_cl)-2)] + (1 - alpha) %o% tp(assets=dat)[1:(nrow(dat_cl)-2)]
+    # define the portfolio returns
+    return_pf <- w_pf %*% yearly_returns
+    
+    # define the portfolio volatilities
+    volatility_pf <- c()
+    for(i in 1:length(alpha)){volatility_pf[i] <- sqrt(t(w_pf[i,]) %*% Sigma %*% w_pf[i,]) * sqrt(p_year)}
+    
+    # plot of the efficient frontier ----
+    plot(x=100*volatility_pf,
+         y=100*return_pf,
+         type="l",
+         col="red",
+         xlab="volatilities [%]",
+         ylab="returns [%]",
+         main="efficient frontier",
+         xlim=c(min(c(100*dat_cl$MVP_opt_short[nrow(dat_cl)],100*dat_cl$TP_normal_function_short[nrow(dat_cl)],100*dat_cl$individual[nrow(dat_cl)],100*dat_cl$TP_normal_function_short[nrow(dat_cl)] ))-5, 
+                5+max(c(100*dat_cl$MVP_opt_short[nrow(dat_cl)],100*dat_cl$TP_normal_function_short[nrow(dat_cl)],100*dat_cl$individual[nrow(dat_cl)],100*dat_cl$TP_normal_function_short[nrow(dat_cl)] ))),
+         ylim=c(-5-min(c(100*dat_cl$MVP_opt_short[nrow(dat_cl)-1],100*dat_cl$TP_normal_function_short[nrow(dat_cl)-1],100*dat_cl$individual[nrow(dat_cl)-1],100*dat_cl$TP_normal_function_short[nrow(dat_cl)-1] )), 
+                5+max(c(100*dat_cl$MVP_opt_short[nrow(dat_cl)-1],100*dat_cl$TP_normal_function_short[nrow(dat_cl)-1],100*dat_cl$individual[nrow(dat_cl)-1],100*dat_cl$TP_normal_function_short[nrow(dat_cl)-1] ))))
+    
+    
+    
+    # mvp point shorting ----
+    points(x=100*dat_cl$MVP_opt_short[nrow(dat_cl)],
+           y=100*dat_cl$MVP_opt_short[nrow(dat_cl)-1],
+           col="blue",
+           pch=16,
+           cex=1.5)
+    text(x=100*dat_cl$MVP_opt_short[nrow(dat_cl)],
+         y=100*dat_cl$MVP_opt_short[nrow(dat_cl)-1],
+         labels=latex2exp::TeX(input="$MVP_{short}$"),
+         pos=1,
+         offset=1,
+         col="blue")
+    
+    
+    
+    # mvp point not shorting ----
+    points(x=100*dat_cl$MVP_opt_not_short[nrow(dat_cl)],
+           y=100*dat_cl$MVP_opt_not_short[nrow(dat_cl)-1],
+           col="orange",
+           pch=16,
+           cex=0.75)
+    text(x=100*dat_cl$MVP_opt_not_short[nrow(dat_cl)],
+         y=100*dat_cl$MVP_opt_not_short[nrow(dat_cl)-1],
+         labels=latex2exp::TeX(input="$MVP_{not short}$"),
+         pos=3,
+         offset=1,
+         col="orange")
+    
+    
+    
+    # tp point ----
+    points(100*dat_cl$TP_normal_function_short[nrow(dat_cl)],
+           y=100*dat_cl$TP_normal_function_short[nrow(dat_cl)-1],
+           col="green",
+           pch=16,
+           cex=1.5)
+    text(x=100*dat_cl$TP_normal_function_short[nrow(dat_cl)],
+         y=100*dat_cl$TP_normal_function_short[nrow(dat_cl)-1],
+         labels=c("TP"),
+         pos=3,
+         offset=1,
+         col="green")
+    
+    
+    
+    # risk free return ----
+    points(x=0, y=0.01, col="yellow", pch=16)
+    text(x=0, y=0.01, col="yellow", pos=4, labels=latex2exp::TeX(input="$r_{rf}$"))
+    abline(v=0, col="yellow")
+    
+    # draw cpital marekt line
+    lines(x=c(0, 100*dat_cl$TP_normal_function_short[nrow(dat_cl)]),
+          y=c(0.01, 100*dat_cl$TP_normal_function_short[nrow(dat_cl)-1]),
+          lty=2)
+    
+    
+    
+    # individual investment ----
+    points(x=100*dat_cl$individual[nrow(dat_cl)],
+           y=100*dat_cl$individual[nrow(dat_cl)-1],
+           col="red", pch=16, cex=2)
+    text(x=100*dat_cl$individual[nrow(dat_cl)],
+         y=100*dat_cl$individual[nrow(dat_cl)-1],
+         labels=latex2exp::TeX(input="$Individual$"),
+         col="red", pos=1)
+    
+    
+  }
+  
+  
+  
   
   donut <- function(df_donut){
     # Hole size
@@ -930,11 +1082,57 @@ tp <- function(assets, rf=0.01, p_year=260){
             axis.title = element_text(color = "black")) # set the axis title to black
   }, bg="transparent")
   
+  
+  #Create boxplot for TP
+  output$donut_tp <- renderPlot({
+    y <- tp(dataset6())
+        y2 <- y[1:(length(y)-2)]
+
+    df <- data.frame(value=y2*input$tp_amount,
+                     Anlage=rename_assets(colnames(dataset6())))
+    
+    # donut(df_donut)
+    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
+      geom_bar(stat = "identity") +
+      scale_fill_brewer(palette = "YlGnBu") +
+      geom_text(aes(label = df$value), vjust = -0.5) +
+      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
+            panel.grid.major = element_blank(), # remove the major grid lines
+            panel.grid.minor = element_blank(), # remove the minor grid lines
+            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
+            axis.line = element_line(color = "black"), # set the axis lines to black
+            axis.text = element_text(color = "black"), # set the axis text to black
+            axis.title = element_text(color = "black")) # set the axis title to black
+  }, bg="transparent")
+  
+  #Create boxplot for My Portfolio TP
+  output$boxplot_tp_my_portfolio <- renderPlot({
+    y <- tp(dataset3())
+    y2 <- y[1:(length(y)-2)]
+    summe_portfolio <- sum(my_portfolio())
+    
+    df <- data.frame(value=y2*summe_portfolio,
+                     Anlage=rename_assets(colnames(dataset3())))
+    
+    # donut(df_donut)
+    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
+      geom_bar(stat = "identity") +
+      scale_fill_brewer(palette = "YlGnBu") +
+      geom_text(aes(label = df$value), vjust = -0.5) +
+      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
+            panel.grid.major = element_blank(), # remove the major grid lines
+            panel.grid.minor = element_blank(), # remove the minor grid lines
+            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
+            axis.line = element_line(color = "black"), # set the axis lines to black
+            axis.text = element_text(color = "black"), # set the axis text to black
+            axis.title = element_text(color = "black")) # set the axis title to black
+  }, bg="transparent")
+  
   #Create boxplot for Rendite Maximieren
   output$boxplot_rendite <- renderPlot({
     print(input$slider_rendite)
     print(input$shorting_rendite)
-    y <- v_opt(assets=dataset7(), v_pf=input$slider_rendite, shorting=input$shorting_rendite, p_year=260)
+    y <- V_OPT_Rendite()
     print("here0")
     y2 <- y[1:(length(y)-2)]
     print("here1")
@@ -1013,6 +1211,13 @@ tp <- function(assets, rf=0.01, p_year=260){
             axis.title = element_text(color = "black")) # set the axis title to black
   }, bg="transparent")
   
+  #Individuelles Investment Efficient Frontier
+  observeEvent(input$plotEfficient, {
+  output$effeicient_indiv <- renderPlot({
+    plot_efficient_indiv(dataset8(), indiv_change())
+  }, bg="transparent")
+  })
+  
   #MVP Matrix Mein Portfolio
   output$donut_mvp_my_portfolio <- renderPlot({
     #create data frame
@@ -1039,8 +1244,8 @@ tp <- function(assets, rf=0.01, p_year=260){
   output$boxplot_mvp_my_portfolio <- renderPlot({
     y <- mvp(rendite_matrix(dataset4()))
     
-    y <- y[1:(length(y)-2)]
-    summe_portfolio <<- sum(my_portfolio())
+    y <- round(y[1:(length(y)-2)],3)
+    summe_portfolio <<- round(sum(my_portfolio()),3)
     df <- data.frame(value=y*summe_portfolio,
                            Anlage=rename_assets(colnames(dataset4())))
     
@@ -1107,7 +1312,7 @@ tp <- function(assets, rf=0.01, p_year=260){
   #Box mit Rendite für MVP
   output$mvp_renditeBox <- renderValueBox({
     y <- mvp(dataset3())
-    y <- y[length(y)-1]
+    y <- round(y[length(y)-1],3)
     valueBox(
       
       paste(y*100, "%"), "Rendite", icon = icon("resize-vertical", lib = "glyphicon"),
@@ -1118,7 +1323,7 @@ tp <- function(assets, rf=0.01, p_year=260){
   #Box mit Risiko für MVP
   output$mvp_risikoBox <- renderValueBox({
     y <- mvp(dataset3())
-    y <- y[length(y)]
+    y <- round(y[length(y)],3)
     
     valueBox(
       paste(y*100, "%"), "Risiko", icon = icon("warning-sign", lib = "glyphicon"),
@@ -1176,11 +1381,44 @@ tp <- function(assets, rf=0.01, p_year=260){
       setView(lng = 8.72923, lat = 47.49732, zoom = 13)
   })
   
+  #Box mit Rendite für Rendite maximieren
+  output$rendite_renditeBox <- renderValueBox({
+    y <- V_OPT_Rendite()
+    y <- y[length(y)-1]
+    valueBox(
+      
+      paste(y*100, "%"), "Rendite", icon = icon("resize-vertical", lib = "glyphicon"),
+      color = "aqua", width=6
+    )
+  })
+  
+  #Box mit Risiko für Rendite
+  output$rendite_risikoBox <- renderValueBox({
+    y <- V_OPT_Rendite()
+    y <- y[length(y)]
+    
+    valueBox(
+      paste(y*100, "%"), "Risiko", icon = icon("warning-sign", lib = "glyphicon"),
+      color = "aqua", width = 6
+    )
+  })
+  
+  #Tabelle Rendite
+  output$RENDITE_OUTPUT <- renderTable({
+    anteil <- V_OPT_Rendite()[]
+    anteil <- anteil[1:(length(anteil)-2)]
+    betrag <- sum(indiv_change())
+    a <- rbind(rename_assets(colnames(dataset8()))[],paste(percent(anteil)), anteil*betrag)
+    colnames(a)<-a[1,]
+    a<-a[-1, ]
+    a
+  })
+  
   
   #Box mit Rendite für INDIViduelles
   output$indiv_renditeBox <- renderValueBox({
     y <- indiv(dataset8(), indiv_change())
-    y <- y[length(y)-1]
+    y <- round(y[length(y)-1],3)
     valueBox(
       
       paste(y*100, "%"), "Rendite", icon = icon("resize-vertical", lib = "glyphicon"),
@@ -1191,7 +1429,7 @@ tp <- function(assets, rf=0.01, p_year=260){
   #Box mit Risiko für Individuelles
   output$indiv_risikoBox <- renderValueBox({
     y <- indiv(dataset8(), indiv_change())
-    y <- y[length(y)]
+    y <- round(y[length(y)],3)
     
     valueBox(
       paste(y*100, "%"), "Risiko", icon = icon("warning-sign", lib = "glyphicon"),
