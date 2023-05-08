@@ -51,6 +51,7 @@ abbreviate2 <- function(x) {
 
 # Specify the assets and date range
 assets <- c("^SSMI", "USDCHF=X", "^GSPC", "GC=F", "BTC-USD", "SREN.SW", "^TNX")
+assets0 <- c("^SSMI", "^GSPC", "GC=F", "BTC-USD", "SREN.SW", "^TNX")
                 #c("SMI", "USD / CHF", "S&P500", " ", "Bitcoin USD", " ", " ", " "))
 assets1 <- c("SMI"="^SSMI", "USD/CHF"="USDCHF=X", "S&P500"="^GSPC", "Gold"="GC=F", "Bitcoin USD"="BTC-USD", "CH Staatsanleihen"="SREN.SW", "US Staatsanleihen"="^TNX")
 assets2 <- c("SMI", "USD/CHF", "S&P500", "Gold", "Bitcoin USD", "CH Staatsanleihen", "US Staatsanleihen")
@@ -95,8 +96,25 @@ cut_1970 <- function(data){
     
   }
   print("cut 1970")
-  print(dat_1970[,name])
   return(dat_1970[,name])
+  
+}
+
+#select the wanted assets
+cut_1970_2 <- function(data){
+  name <- c()
+  for (i in data) {
+    
+    for (j in 1:length(assets)) {
+      if(i==assets[j]){
+        name<-c(name,assets[j])
+      }
+    }
+    
+  }
+  print("cut 1970")
+  print(dat_1970[,name])
+  return(data_1970[,name])
   
 }
 #smi_data <- getSymbols("^SSMI", auto.assign = FALSE)
@@ -149,17 +167,23 @@ ui <- function(request) {
                                    column(3,numericInput("bitcoin", "Bitcoin [CHF]", value = 18000)),
                                    column(3,numericInput("us_gov_bonds", "US Staatsanleihen [CHF]", value = 5000)),
                                    column(3,numericInput("sp500", "SP500 [CHF]", value = 1000)),
-                                   column(3,numericInput("usd_chf", "USD/CHF Devisen [CHF]", value = 9000)),
+                                   #column(3,numericInput("usd_chf", "USD/CHF Devisen [CHF]", value = 9000)),
                                    column(3,),
                                    br(),
                                    br(),
                                    fluidRow(),
                                    column(6, 
                                           h1("MVP"),
-                                          plotOutput("boxplot_mvp_my_portfolio", height= "45vh")),
+                                          plotOutput("boxplot_mvp_my_portfolio", height= "45vh"),
+                                   fluidRow(valueBoxOutput("mvp_renditeBox_my_portfolio"),
+                                            valueBoxOutput("mvp_risikoBox_my_portfolio")),
+                                            column(12, tableOutput("MVP_OUTPUT_My_portfolio"))),
                                   column(6, 
                                          h1("TP"),
-                                         plotOutput("boxplot_tp_my_portfolio", height= "45vh")),
+                                         plotOutput("boxplot_tp_my_portfolio", height= "45vh"),
+                                         fluidRow(valueBoxOutput("tp_renditeBox_my_portfolio"),
+                                                  valueBoxOutput("tp_risikoBox_my_portfolio")),
+                                         column(12, tableOutput("TP_OUTPUT_My_portfolio"))),
                                    width ="100vh")),
                             
                           tabPanel("Kursübersicht",
@@ -227,6 +251,9 @@ ui <- function(request) {
                                                       step=0.01),
                                    checkboxInput("shorting_risiko", "shorting" ),
                                    column(12, plotOutput("boxplot_risiko", height= "65vh")),
+                                   fluidRow(valueBoxOutput("risiko_renditeBox"),
+                                            valueBoxOutput("risiko_risikoBox")),
+                                   column(12, tableOutput("RISIKO_OUTPUT")),
                                    
                           )),
                           
@@ -347,7 +374,7 @@ server <- function(input, output, session) {
   usd_chf_port <- reactive({input$usd_chf})
   
   my_portfolio <- reactive({c(smi_port(), 
-                              usd_chf_port(), 
+                              #usd_chf_port(), 
                               sp500_port(), 
                               gold_port(), 
                               bitcoin_port() ,
@@ -501,6 +528,7 @@ start_date_selector <- reactive({
     
   })
   
+  #My Portfolio dataset
   dataset4 <- reactive({
     temp <- data_1970
     colnames(temp) <- assets
@@ -511,17 +539,50 @@ start_date_selector <- reactive({
     
     for (i in seq_along(my_portfolio())){
       if(my_portfolio()[i]!=0){
-        assets4 <-c(assets4, assets[i])
+        assets4 <-c(assets4, assets0[i])
       }
     }
+    print("assets4 dataset 4")
     print(assets4)
-    # subset data based on selected assets
-    subset_data <- temp[, assets4]
-    print(subset_data)
+    return(cut_1970_2(assets4))
+    # print(assets4)
+    # # subset data based on selected assets
+    # subset_data <- temp[, assets4]
+    # print(subset_data)
+    # 
+    # # return xts object
+    # xts(subset_data, order.by = index(temp))
     
-    # return xts object
-    xts(subset_data, order.by = index(temp))
+  })
+  #My Portfolio dataset
+  dataset4_2 <- reactive({
+    temp <- data_1970
+    colnames(temp) <- assets
+    temp
     
+    #names(my_portfolio) <- assets
+    assets4 <<- NULL
+    
+    for (i in seq_along(my_portfolio())){
+      if(my_portfolio()[i]!=0){
+        assets4 <-c(assets4, assets0[i])
+      }
+    }
+    #assets4 <- c(assets4, "USDCHF=X")
+    print("assets4 dataset 4.2")
+    print(assets4)
+    print("dataset4.2")
+    print(cut_1970(assets4))
+    return(cut_1970(assets4))
+    # 
+    #  print(assets4)
+    #  # subset data based on selected assets
+    # subset_data <- temp[, assets4]
+    #  print(subset_data)
+    #  
+    #  # return xts object
+    #  xts(subset_data, order.by = index(temp))
+    # 
   })
   
   dataset5 <- reactive({
@@ -722,6 +783,10 @@ start_date_selector <- reactive({
   #V_OPT reaktives element
   V_OPT_Rendite <- reactive({
     return(v_opt(assets=dataset7(), v_pf=input$slider_rendite, shorting=input$shorting_rendite, p_year=260))
+  })
+  
+  V_OPT_Risiko <- reactive({
+    return(r_opt(assets=dataset7(), r_pf=input$slider_risiko, shorting=input$shorting_risiko, p_year=260))
   })
   
   #Risiko Minimieren Funktion r_opt
@@ -1023,8 +1088,12 @@ tp <- function(assets, rf=0.01, p_year=260){
   #create Donut Plot of portfolio
   output$donut_index <- renderPlot({
     #create data frame
-    df_donut <- data.frame(value=c(input$smi, input$gold, input$bitcoin, input$ch_gov_bonds, input$us_gov_bonds, input$sp500, input$usd_chf),
-                           Anlage=c("SMI", "Gold", "Bitcoin", "Schweizer Staatsanleihen", "US Staatsanleihen", "S&P500", "USD/CHF"))
+    df_donut <- data.frame(value=c(input$smi, input$gold, input$bitcoin, input$ch_gov_bonds, input$us_gov_bonds, input$sp500
+                                   #, input$usd_chf
+                                   ),
+                           Anlage=c("SMI", "Gold", "Bitcoin", "Schweizer Staatsanleihen", "US Staatsanleihen", "S&P500"
+                                    #,"USD/CHF"
+                                    ))
     
     donut(df_donut)
   }, bg="transparent")
@@ -1105,14 +1174,21 @@ tp <- function(assets, rf=0.01, p_year=260){
             axis.title = element_text(color = "black")) # set the axis title to black
   }, bg="transparent")
   
+  #reaktives Element TP My Portfolio
+  my_portfolio_tp <- reactive({
+    return(tp(dataset4_2()))
+  })
+  
   #Create boxplot for My Portfolio TP
   output$boxplot_tp_my_portfolio <- renderPlot({
-    y <- tp(dataset3())
+    y <- my_portfolio_tp()
+    print("TP My Portfolio")
     y2 <- y[1:(length(y)-2)]
+    print(colnames(y2))
     summe_portfolio <- sum(my_portfolio())
     
     df <- data.frame(value=y2*summe_portfolio,
-                     Anlage=rename_assets(colnames(dataset3())))
+                     Anlage=rename_assets(colnames(dataset4_2())))
     
     # donut(df_donut)
     ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
@@ -1127,6 +1203,41 @@ tp <- function(assets, rf=0.01, p_year=260){
             axis.text = element_text(color = "black"), # set the axis text to black
             axis.title = element_text(color = "black")) # set the axis title to black
   }, bg="transparent")
+  
+  #Box mit Rendite für TP My Portfolio
+  output$tp_renditeBox_my_portfolio <- renderValueBox({
+    y <- my_portfolio_tp()
+    y <- round(y[length(y)-1],3)
+    valueBox(
+      
+      paste(y*100, "%"), "Rendite", icon = icon("resize-vertical", lib = "glyphicon"),
+      color = "aqua", width=6
+    )
+  })
+  
+  #Box mit Risiko für TP MY Portfolio
+  output$tp_risikoBox_my_portfolio <- renderValueBox({
+    y <- my_portfolio_tp()
+    y <- round(y[length(y)],3)
+    
+    valueBox(
+      paste(y*100, "%"), "Risiko", icon = icon("warning-sign", lib = "glyphicon"),
+      color = "aqua", width = 6
+    )
+  })
+  
+  #Tabelle TP My Portfolio
+  output$TP_OUTPUT_My_portfolio <- renderTable({
+    anteil <- my_portfolio_tp()
+    anteil <- anteil[1:(length(anteil)-2)]
+    a <- rbind(rename_assets(colnames(dataset4_2()))[],paste(percent(anteil)), anteil*summe_portfolio)
+    colnames(a)<-a[1,]
+    a<-a[-1, ]
+    a
+  })
+  
+  
+  
   
   #Create boxplot for Rendite Maximieren
   output$boxplot_rendite <- renderPlot({
@@ -1240,14 +1351,19 @@ tp <- function(assets, rf=0.01, p_year=260){
     
   }
   
+  #reactive element MVP my portfolio
+  my_portfolio_mvp <- reactive({
+    return(mvp(dataset4_2()))
+  })
+  
   #boxplot of MVP in my_portfolio-page
   output$boxplot_mvp_my_portfolio <- renderPlot({
-    y <- mvp(rendite_matrix(dataset4()))
+    y <- my_portfolio_mvp()
     
     y <- round(y[1:(length(y)-2)],3)
     summe_portfolio <<- round(sum(my_portfolio()),3)
     df <- data.frame(value=y*summe_portfolio,
-                           Anlage=rename_assets(colnames(dataset4())))
+                           Anlage=rename_assets(colnames(dataset4_2())))
     
     ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
       geom_bar(stat = "identity") +
@@ -1264,29 +1380,38 @@ tp <- function(assets, rf=0.01, p_year=260){
             axis.title = element_text(color = "black")) # set the axis title to black
   }, bg="transparent")
   
-  #boxplot of MVP in my_portfolio-page
-  output$boxplot_mvp_my_portfolio <- renderPlot({
-    y <- mvp(rendite_matrix(dataset4()))
+  #Box mit Rendite für MVP My Portfolio
+  output$mvp_renditeBox_my_portfolio <- renderValueBox({
+    y <- my_portfolio_mvp()
+    y <- round(y[length(y)-1],3)
+    valueBox(
+      
+      paste(y*100, "%"), "Rendite", icon = icon("resize-vertical", lib = "glyphicon"),
+      color = "aqua", width=6
+    )
+  })
+  
+  #Box mit Risiko für MVP MY Portfolio
+  output$mvp_risikoBox_my_portfolio <- renderValueBox({
+    y <- my_portfolio_mvp()
+    y <- round(y[length(y)],3)
     
-    y <- y[1:(length(y)-2)]
-    summe_portfolio <<- sum(my_portfolio())
-    df <- data.frame(value=y*summe_portfolio,
-                           Anlage=rename_assets(colnames(dataset4())))
-    
-    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
-      geom_bar(stat = "identity") +
-      scale_fill_brewer(palette = "YlGnBu") +
-      geom_text(aes(label = df$value), vjust = -0.5) +
-      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
-            panel.border = element_blank(),
-            panel.grid.major = element_blank(), # remove the major grid lines
-            panel.grid.minor = element_blank(), # remove the minor grid lines
-            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
-            #legend.background = element_blank(),
-            axis.line = element_line(color = "black"), # set the axis lines to black
-            axis.text = element_text(color = "black"), # set the axis text to black
-            axis.title = element_text(color = "black")) # set the axis title to black
-  }, bg="transparent")
+    valueBox(
+      paste(y*100, "%"), "Risiko", icon = icon("warning-sign", lib = "glyphicon"),
+      color = "aqua", width = 6
+    )
+  })
+  
+  #Tabelle MVP My Portfolio
+  output$MVP_OUTPUT_My_portfolio <- renderTable({
+    anteil <- my_portfolio_mvp()
+    anteil <- anteil[1:(length(anteil)-2)]
+    a <- rbind(rename_assets(colnames(dataset4_2()))[],paste(percent(anteil)), anteil*summe_portfolio)
+    colnames(a)<-a[1,]
+    a<-a[-1, ]
+    a
+  })
+
   
   #Tabelle MVP
   output$MVP_OUTPUT <- renderTable({
@@ -1298,16 +1423,7 @@ tp <- function(assets, rf=0.01, p_year=260){
     a
      })
   
-  #Tabelle TP
-  output$TP_OUTPUT <- renderTable({
-    anteil <- tp(dataset6())[]
-    anteil <- anteil[1:(length(anteil)-2)]
-    betrag <- input$tp_amount
-    a <- rbind(rename_assets(colnames(dataset6()))[],paste(percent(anteil)), anteil*betrag)
-    colnames(a)<-a[1,]
-    a<-a[-1, ]
-    a
-  })
+  
   
   #Box mit Rendite für MVP
   output$mvp_renditeBox <- renderValueBox({
@@ -1351,6 +1467,17 @@ tp <- function(assets, rf=0.01, p_year=260){
       paste(y*100, "%"), "Risiko", icon = icon("warning-sign", lib = "glyphicon"),
       color = "aqua", width = 6
     )
+  })
+  
+  #Tabelle TP
+  output$TP_OUTPUT <- renderTable({
+    anteil <- tp(dataset6())[]
+    anteil <- anteil[1:(length(anteil)-2)]
+    betrag <- input$tp_amount
+    a <- rbind(rename_assets(colnames(dataset6()))[],paste(percent(anteil)), anteil*betrag)
+    colnames(a)<-a[1,]
+    a<-a[-1, ]
+    a
   })
   
   
@@ -1406,6 +1533,39 @@ tp <- function(assets, rf=0.01, p_year=260){
   #Tabelle Rendite
   output$RENDITE_OUTPUT <- renderTable({
     anteil <- V_OPT_Rendite()[]
+    anteil <- anteil[1:(length(anteil)-2)]
+    betrag <- sum(indiv_change())
+    a <- rbind(rename_assets(colnames(dataset8()))[],paste(percent(anteil)), anteil*betrag)
+    colnames(a)<-a[1,]
+    a<-a[-1, ]
+    a
+  })
+  
+  #Box mit Rendite für Risiko minimieren
+  output$risiko_renditeBox <- renderValueBox({
+    y <- V_OPT_Risiko()
+    y <- y[length(y)-1]
+    valueBox(
+      
+      paste(y*100, "%"), "Rendite", icon = icon("resize-vertical", lib = "glyphicon"),
+      color = "aqua", width=6
+    )
+  })
+  
+  #Box mit Risiko für Risiko
+  output$risiko_risikoBox <- renderValueBox({
+    y <- V_OPT_Risiko()
+    y <- y[length(y)]
+    
+    valueBox(
+      paste(y*100, "%"), "Risiko", icon = icon("warning-sign", lib = "glyphicon"),
+      color = "aqua", width = 6
+    )
+  })
+  
+  #Tabelle Risiko
+  output$RISIKO_OUTPUT <- renderTable({
+    anteil <- V_OPT_Risiko()[]
     anteil <- anteil[1:(length(anteil)-2)]
     betrag <- sum(indiv_change())
     a <- rbind(rename_assets(colnames(dataset8()))[],paste(percent(anteil)), anteil*betrag)
