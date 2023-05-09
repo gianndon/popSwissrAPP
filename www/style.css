@@ -252,7 +252,7 @@ tr {
 }
 th{
   font-size: 18px;
-  color: blue;
+  color: #0f5dbd;
 }
 
 #text1{
@@ -266,3 +266,30 @@ th{
   margin-bottom: 0px;
 }
 
+/* color of Rendite und Risiko Box */
+
+.alert-info, .bg-aqua, .callout.callout-info, .label-info, .modal-info .modal-body {
+    background-color: #73a7f5!important;
+    
+}
+
+/* Image in rendite und risikobox anpassen  */
+
+.glyphicon {
+    position: relative;
+    top: 20px;
+    display: inline-block;
+    font-family: "Glyphicons Halflings";
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    padding-top: 0px;
+    padding-right: 10px;
+}
+
+/* Betrag eingabe My Portfolio */
+.form-control {
+    border-radius: 5px;
+}

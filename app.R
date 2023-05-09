@@ -163,8 +163,8 @@ ui <- function(request) {
                                    #create input for portfolio with input field
                                    column(3,numericInput("smi", "SMI Index [CHF]", value = 20000)),
                                    column(3,numericInput("ch_gov_bonds", "CH-Staatsanleihen [CHF]", value = 2000)),
-                                   column(3,numericInput("gold", "Gold [CHF]", value = 2000)),
-                                   column(3,numericInput("bitcoin", "Bitcoin [CHF]", value = 18000)),
+                                   column(3,numericInput("gold", "Gold [CHF]", value = 12000)),
+                                   column(3,numericInput("bitcoin", "Bitcoin [CHF]", value = 1800)),
                                    column(3,numericInput("us_gov_bonds", "US Staatsanleihen [CHF]", value = 5000)),
                                    column(3,numericInput("sp500", "SP500 [CHF]", value = 1000)),
                                    #column(3,numericInput("usd_chf", "USD/CHF Devisen [CHF]", value = 9000)),
@@ -859,7 +859,25 @@ start_date_selector <- reactive({
     return(round(c(weights_scal, abs(pf_return), pf_vola),3))
   }
   
-  
+  my_boxplot <- function(df){
+    p <- ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
+      geom_bar(stat = "identity") +
+      scale_fill_brewer(palette = "YlGnBu") +
+      geom_text(aes(label = df$value), vjust = -0.5) +
+      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
+            panel.grid.major = element_blank(), # remove the major grid lines
+            panel.grid.minor = element_blank(), # remove the minor grid lines
+            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
+            axis.line = element_line(color = "black"), # set the axis lines to black
+            axis.text = element_text(color = "black"), # set the axis text to black
+            axis.title = element_text(color = "black"), # set the legend background to transparent
+            legend.background = element_rect(fill = "transparent"),
+            axis.line.x = element_line(color = "black")  # set the x-axis line color to black
+      ) # set the axis title to black
+    
+    p + theme(legend.title = element_text(size = 14)
+              ,legend.text = element_text(size = 12))  # Set the text size to 14)
+  }
  
   
   #MVP Calculation 
@@ -1066,7 +1084,7 @@ tp <- function(assets, rf=0.01, p_year=260){
              pos = value/2 + lead(csum, 1),
              pos = if_else(is.na(pos), value/2, pos))
     
-    ggplot(df_donut, aes(x = hsize, y = value, fill = Anlage)) +
+ p<-   ggplot(df_donut, aes(x = hsize, y = value, fill = Anlage)) +
       geom_col(color = "black", size=1) +
       scale_fill_brewer(palette = "YlGnBu") + # change fill to gold color palette
       coord_polar(theta = "y") +
@@ -1077,11 +1095,16 @@ tp <- function(assets, rf=0.01, p_year=260){
       inherit.aes = TRUE,
       show.legend=FALSE,
       box.padding = 0,
-      size=7, 
-      color="gold3"  ) +
+      size=8, 
+      color="#0f5dbd"  ) +
       guides(fill = guide_legend(title = "Anlage", title.position = "top"))+
-      annotate("text", x = 0, y = 0, size = 20, color="navyblue", label = paste(abbreviate2(sum(df_donut$value)), "CHF"))+
+      annotate("text", x = 0, y = 0, size = 13, color="navyblue", label = paste(abbreviate2(sum(df_donut$value)), "CHF"))+
       theme_void()
+ 
+ p + theme(
+   legend.title = element_text(size = 18),  # Set the text size to 14
+   legend.text = element_text(size = 15)
+ )
   }
   
   
@@ -1138,17 +1161,7 @@ tp <- function(assets, rf=0.01, p_year=260){
                      Anlage=rename_assets(colnames(dataset6())))
     
     # donut(df_donut)
-    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
-      geom_bar(stat = "identity") +
-      scale_fill_brewer(palette = "YlGnBu") +
-      geom_text(aes(label = df$value), vjust = -0.5) +
-      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
-            panel.grid.major = element_blank(), # remove the major grid lines
-            panel.grid.minor = element_blank(), # remove the minor grid lines
-            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
-            axis.line = element_line(color = "black"), # set the axis lines to black
-            axis.text = element_text(color = "black"), # set the axis text to black
-            axis.title = element_text(color = "black")) # set the axis title to black
+    my_boxplot(df)
   }, bg="transparent")
   
   
@@ -1161,17 +1174,7 @@ tp <- function(assets, rf=0.01, p_year=260){
                      Anlage=rename_assets(colnames(dataset6())))
     
     # donut(df_donut)
-    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
-      geom_bar(stat = "identity") +
-      scale_fill_brewer(palette = "YlGnBu") +
-      geom_text(aes(label = df$value), vjust = -0.5) +
-      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
-            panel.grid.major = element_blank(), # remove the major grid lines
-            panel.grid.minor = element_blank(), # remove the minor grid lines
-            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
-            axis.line = element_line(color = "black"), # set the axis lines to black
-            axis.text = element_text(color = "black"), # set the axis text to black
-            axis.title = element_text(color = "black")) # set the axis title to black
+    my_boxplot(df)
   }, bg="transparent")
   
   #reaktives Element TP My Portfolio
@@ -1190,18 +1193,9 @@ tp <- function(assets, rf=0.01, p_year=260){
     df <- data.frame(value=y2*summe_portfolio,
                      Anlage=rename_assets(colnames(dataset4_2())))
     
-    # donut(df_donut)
-    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
-      geom_bar(stat = "identity") +
-      scale_fill_brewer(palette = "YlGnBu") +
-      geom_text(aes(label = df$value), vjust = -0.5) +
-      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
-            panel.grid.major = element_blank(), # remove the major grid lines
-            panel.grid.minor = element_blank(), # remove the minor grid lines
-            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
-            axis.line = element_line(color = "black"), # set the axis lines to black
-            axis.text = element_text(color = "black"), # set the axis text to black
-            axis.title = element_text(color = "black")) # set the axis title to black
+    # Boxplot
+    my_boxplot(df)
+    
   }, bg="transparent")
   
   #Box mit Rendite für TP My Portfolio
@@ -1230,6 +1224,7 @@ tp <- function(assets, rf=0.01, p_year=260){
   output$TP_OUTPUT_My_portfolio <- renderTable({
     anteil <- my_portfolio_tp()
     anteil <- anteil[1:(length(anteil)-2)]
+    summe_portfolio <- sum(my_portfolio())
     a <- rbind(rename_assets(colnames(dataset4_2()))[],paste(percent(anteil)), anteil*summe_portfolio)
     colnames(a)<-a[1,]
     a<-a[-1, ]
@@ -1253,17 +1248,7 @@ tp <- function(assets, rf=0.01, p_year=260){
     print("here2")
     
     # donut(df_donut)
-    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
-      geom_bar(stat = "identity") +
-      scale_fill_brewer(palette = "YlGnBu") +
-      geom_text(aes(label = df$value), vjust = -0.5) +
-      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
-            panel.grid.major = element_blank(), # remove the major grid lines
-            panel.grid.minor = element_blank(), # remove the minor grid lines
-            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
-            axis.line = element_line(color = "black"), # set the axis lines to black
-            axis.text = element_text(color = "black"), # set the axis text to black
-            axis.title = element_text(color = "black")) # set the axis title to black
+    my_boxplot(df)
   }, bg="transparent")
   
   #Create boxplot for Risiko Minimieren
@@ -1280,17 +1265,7 @@ tp <- function(assets, rf=0.01, p_year=260){
     print("here2")
     
     # donut(df_donut)
-    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
-      geom_bar(stat = "identity") +
-      scale_fill_brewer(palette = "YlGnBu") +
-      geom_text(aes(label = df$value), vjust = -0.5) +
-      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
-            panel.grid.major = element_blank(), # remove the major grid lines
-            panel.grid.minor = element_blank(), # remove the minor grid lines
-            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
-            axis.line = element_line(color = "black"), # set the axis lines to black
-            axis.text = element_text(color = "black"), # set the axis text to black
-            axis.title = element_text(color = "black")) # set the axis title to black
+    my_boxplot(df)
   }, bg="transparent")
   
   #Individuelles Investment Boxplot
@@ -1309,17 +1284,7 @@ tp <- function(assets, rf=0.01, p_year=260){
     print("here2")
     
     # donut(df_donut)
-    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
-      geom_bar(stat = "identity") +
-      scale_fill_brewer(palette = "YlGnBu") +
-      geom_text(aes(label = df$value), vjust = -0.5) +
-      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
-            panel.grid.major = element_blank(), # remove the major grid lines
-            panel.grid.minor = element_blank(), # remove the minor grid lines
-            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
-            axis.line = element_line(color = "black"), # set the axis lines to black
-            axis.text = element_text(color = "black"), # set the axis text to black
-            axis.title = element_text(color = "black")) # set the axis title to black
+    my_boxplot(df)
   }, bg="transparent")
   
   #Individuelles Investment Efficient Frontier
@@ -1365,19 +1330,7 @@ tp <- function(assets, rf=0.01, p_year=260){
     df <- data.frame(value=y*summe_portfolio,
                            Anlage=rename_assets(colnames(dataset4_2())))
     
-    ggplot(data = df, aes(x = Anlage, y = value, fill = Anlage)) +
-      geom_bar(stat = "identity") +
-      scale_fill_brewer(palette = "YlGnBu") +
-      geom_text(aes(label = df$value), vjust = -0.5) +
-      theme(panel.background = element_rect(fill = "transparent"), # set the background to transparent
-            panel.border = element_blank(),
-            panel.grid.major = element_blank(), # remove the major grid lines
-            panel.grid.minor = element_blank(), # remove the minor grid lines
-            plot.background = element_rect(fill = NA, color = NA), # set the plot background to white
-            #legend.background = element_blank(),
-            axis.line = element_line(color = "black"), # set the axis lines to black
-            axis.text = element_text(color = "black"), # set the axis text to black
-            axis.title = element_text(color = "black")) # set the axis title to black
+    my_boxplot(df)
   }, bg="transparent")
   
   #Box mit Rendite für MVP My Portfolio
