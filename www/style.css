@@ -179,7 +179,8 @@ a {
 }
 
 #kursuebersicht_style{
-  color:  #d8c690;
+  /*color:  #d8c690;*/
+  color: #090979;
 }
 
 /* change text input field colors */
