@@ -19,10 +19,152 @@ library(nloptr)
 library(leaflet)
 library(geosphere)
 #devtools::install_github("gianndon/popSwissr", force=TRUE)
+#devtools::install_github("dppalomar/portfolioBacktest")
 
 
+#create risk free rate
+rf<- data.frame(date= seq(Sys.Date()-30*365, Sys.Date(), by="day"),rf=0.01)
+
+#Function that calculates portfolio performance measures
+
+calcPortMeasures = function (port_ret, benchmark, rf){
+  
+  mean_rf = 0 #mean(rf)
+  print("mean rf")
+  print(mean_rf)
+  mean_port_ret = mean(port_ret)
+  print("mean port ret")
+  print(mean_port_ret)
+  sd_port_ret = sd(port_ret)
+  print("sd port ret")
+  print(sd_port_ret)
+  
+  #Calculate Sharpe
+  sharpe = ((mean_port_ret - mean_rf) / sd_port_ret) * sqrt(250)
+  
+  #Calculate Beta
+  mod = lm(formula = port_ret~benchmark)
+  beta = summary(mod)$coefficients[2,1]
+  
+  #Calculate Sortino
+  sortino = SortinoRatio(port_ret) * sqrt(250)
+  
+  #Calculate Taylor
+  treynor = ((mean_port_ret - mean_rf)*250)*100/beta
+  
+  results = list("AvRet"=mean_port_ret * 250, "StDev" = sd_port_ret * sqrt(250),
+                 "Sharpe" = sharpe, "Sortino" = sortino[1], "Beta" = beta, "Treynor" = treynor)
+  
+  return (results)
+  
+}
+
+#Function that calculates portfolio returns
+calcPortReturn = function(df, from, to, wght, rebalance, geometric = TRUE){
+  
+  #Cut dataframe to reflect date range
+  df_range = df %>% rownames_to_column("date") %>%
+    filter(as.Date(date)>=from & as.Date(date) <= to) %>% column_to_rownames("date")
+  
+  df_range = xts(df_range, order.by = as.Date(row.names(df_range)))
+  indexClass(df_range) <- "Date"
+  
+  #Create repalace operator
+  reb_op = ifelse(rebalance=="Never", NA,
+                  ifelse(rebalance=="Annually", "years", 
+                         ifelse(rebalance=="Quarterly", "quarters",
+                                "months")))
+  
+  port_ret = Return.portfolio(df_range, weights = wght, geometric = geometric, rebalance_on = reb_op)
+  print("PORT RET")
+  print(port_ret)
+  
+  port_ret = data.frame(port_ret)
+  
+  colnames(port_ret) = c("RetPort")
+  
+  return (port_ret)
+  
+}
 
 
+# suspend and resume a list of observers
+suspendMany = function(observers) invisible(lapply(observers, function(x) x$suspend()))
+resumeMany = function(observers) invisible(lapply(observers, function(x) x$resume()))
+
+#color palettes Kennzahlen
+my_colors = brewer.pal(6, "Blues")
+
+date_choices = seq(as.Date("2000-01-01"),Sys.Date(), by="1 month")
+date_choices[length(date_choices)] = Sys.Date()
+
+# function to change sliderInput
+wghtsliderInput = function(inputId,value, label, submitted=FALSE) {
+  if (!submitted)
+    sliderInput(inputId=inputId,
+                value=value,
+                label=label,
+                min=0,
+                max=1,
+                ticks=FALSE)
+}
+
+
+### Function to perform backtesting
+
+bt_port = function(df, from, to, wght, rebalance){
+  
+  # Create a dataframe with portfolio and benchmark returns
+  print("1")
+  
+  df_tmp = df %>% mutate(date = as.Date(row.names(df)))
+  print("2")
+  
+  # Portfolio return
+  port_ret = data.frame(calcPortReturn(df, from, to, wght, rebalance))
+  print("3")
+  port_ret$date = as.Date(row.names(port_ret))
+  print("4")
+  port_ret = rename(port_ret, Portfolio = RetPort)
+  print("5")
+  # 60/30/10 Portfolio
+  sixty_port = data.frame(calcPortReturn(df, from, to,
+                                         wght = c(0, 0.6, 0.1, 0, 0, 0.3), rebalance))
+  print("6")
+  sixty_port$date = as.Date(row.names(sixty_port))
+  sixty_port = rename(sixty_port, R60T10C30 = RetPort)
+  print("7")
+  
+  # Merge into one df
+  port_ret = merge(port_ret, df_tmp[,c("X.GSPC","date")], by = "date", all.x = TRUE)
+  port_ret = merge(port_ret, sixty_port, by = "date", all.x = TRUE)
+  print("8")
+  
+  return(port_ret)
+}
+
+
+## Funcions to balance weight
+#Updates weights if changed
+
+updateweight = function(oldweight, new, i) {
+  if (new==oldweight[i]) {
+    oldweight
+  } else if (new==1){
+    newweight = rep(0,6)
+    oldweight = oldweight
+    new = 0.9999
+    newweight[-i] = oldweight[-i]/(sum(oldweight[-i]) + 1e-10)*(1-new)
+    newweight[i] = new
+    newweight
+  } else {
+    newweight = rep(0,6)
+    oldweight = oldweight
+    newweight[-i] = oldweight[-i]/(sum(oldweight[-i]) + 1e-10)*(1-new)
+    newweight[i] = new
+    newweight
+  }
+}
 
 #binds data columnwise and fills with NA
 cbind.fill <- function(...){
@@ -265,7 +407,7 @@ ui <- function(request) {
                                                                 #multiple = TRUE,
                                    ), id="kursuebersicht_style"),
                                    column(2,numericInput("mvp_amount", "Amount [CHF]", value = 20000)),
-                                   column(1,checkboxInput("shorting_mvp", "shorting" )),
+                                   column(1,checkboxInput("shorting_mvp", "shorting", value = TRUE )),
                                    
                                    br(),
                                    column(12, plotOutput("donut_mvp", height= "65vh")),
@@ -317,6 +459,42 @@ ui <- function(request) {
                                    ),
                           tabPanel("Kennzahlen",
                                    h1("Kennzahlen"),
+                                   fluidRow(div(column(6, h4("Portfolio Allokation auswählen:", align = "center")),
+                                                column(3, h4("Neugewichtung auswählen:", align = "left")),
+                                                column(3, h4("Allokation", align = "center")))
+                                   ),
+                                   fluidRow(column(3,
+                                                   uiOutput("p1ui"),
+                                                   uiOutput("p2ui"),
+                                                   uiOutput("p3ui")),
+                                            column(3,
+                                                   uiOutput("p4ui"),
+                                                   uiOutput("p5ui"),
+                                                   uiOutput("p6ui")),
+                                            column(3,
+                                                   fluidRow(
+                                                     radioButtons(inputId="rebalance",
+                                                                  label=NULL, 
+                                                                  choices=c("monatlich","vierteljährlich", "jährlich", "nie"),
+                                                                  selected = "Never")),
+                                                   fluidRow(br(),br(),br(),
+                                                            div(actionBttn("go", label = "Backtest", color = "primary"), 
+                                                                align = "left"))
+                                            ),
+                                            column(3,
+                                                   div(plotlyOutput("graph5"), align = "center", style = "height:250px"))),
+                                   fluidRow(column(12,
+                                                   div(sliderTextInput(
+                                                     inputId = "date_range", label = h4("Zeitintervall:"), width = "80%",
+                                                     choices = date_choices, selected = range(date_choices),
+                                                     grid = TRUE, dragRange = FALSE
+                                                   ), align = "center"))
+                                   ),
+                                   fluidRow(column(6, h4("Gesamtrendite", align="center")),
+                                            column(6, h4("Performance Messungen", align="center"))),
+                                   fluidRow(column(6, div(plotlyOutput("graph6"), align="center")),
+                                            column(6, div(tableOutput("bt_table1"), align="center"))
+                                   ),
                                    )
                         )),
                tabPanel("Über uns", 
@@ -673,6 +851,29 @@ start_date_selector <- reactive({
     return(cut_1970(input$assets3))
   })
   
+  dataset_kennzahlen <- reactive({
+    data <- cut_1970(assets0) 
+    rename_assets(data)
+    #print("dataset KENNZAHLEN")
+    #print(colnames(data))
+    #print("ROW NAMES DATA")
+    #print(row.names(data))
+    #print(data)
+    # Convert xts to data frame
+    data_df <- as.data.frame(data)
+    #print("ROW NAMES DATA DF")
+    data_df$RowNames <- row.names(data_df)
+    #print(row.names(data_df))
+    #data_df$date <- as.Date(row.names(data_df), format = "%Y-%m-%d")
+    # Write data frame to CSV file
+    write.csv(data_df, "data_kennzahlen.csv", row.names = FALSE)
+    print("DATA KENNZAHLEN !!!!")
+    print(read.csv("data_kennzahlen.csv", row.names = "RowNames"))
+    print(colnames(read.csv("data_kennzahlen.csv", row.names = "RowNames")))
+    # Read the CSV file
+    return(read.csv("data_kennzahlen.csv", row.names = "RowNames"))
+  })
+  
   #changes in individual investment
   indiv_change <- reactive({
     amounts <- c(input$smi2,input$sp5002, input$gold2, input$bitcoin2, input$ch_gov_bonds2, input$us_gov_bonds2)
@@ -755,7 +956,7 @@ start_date_selector <- reactive({
     # set optimization options.
     opts <- list("algorithm"="NLOPT_GN_ISRES",
                  "xtol_rel"=1.0e-15,
-                 "maxeval"=1600,
+                 "maxeval"=40000,
                  "local_opts"=list("algorithm"="NLOPT_LD_MMA", 
                                    "xtol_rel"=1.0e-15),
                  "print_level"=0)
@@ -831,7 +1032,7 @@ start_date_selector <- reactive({
     # set optimization options
     opts <- list("algorithm"="NLOPT_GN_ISRES",
                  "xtol_rel"=1.0e-15,
-                 "maxeval"=1600,
+                 "maxeval"=40000,
                  "local_opts"=list("algorithm"="NLOPT_LD_MMA",
                                    "xtol_rel"=1.0e-15 ),
                  "print_level"=0)
@@ -1255,7 +1456,7 @@ tp <- function(assets, rf=0.01, p_year=260){
   output$boxplot_risiko <- renderPlot({
     print(input$slider_rendite)
     print(input$shorting_rendite)
-    y <- r_opt(assets=dataset7(), r_pf=input$slider_risiko, shorting=input$shorting_risiko, p_year=260)
+    y <- V_OPT_Risiko()
     print("here0")
     y2 <- y[1:(length(y)-2)]
     print("here1")
@@ -1559,6 +1760,227 @@ tp <- function(assets, rf=0.01, p_year=260){
     colnames(a)<-a[1,]
     a<-a[-1, ]
     a
+  })
+  
+  # Initialize portfolio weights
+  port_weight = reactiveValues(weight=rep(1/6, 6)) # naive diversification
+  
+  # If any of the sliders change, then recalculate other weight weights to satisfy sum to 1 constraint
+  observers = list(
+    observeEvent(input$p1,
+                 {
+                   suspendMany(observers) #This function comes from shinyhelper.R
+                   port_weight$weight = updateweight(port_weight$weight, input$p1, 1)
+                   resumeMany(observers) #This function comes from shinyhelper.R
+                 }
+    ),
+    observeEvent(input$p2,
+                 {
+                   suspendMany(observers)
+                   port_weight$weight = updateweight(port_weight$weight, input$p2, 2)
+                   resumeMany(observers)
+                 }
+    ),
+    observeEvent(input$p3,
+                 {
+                   suspendMany(observers)
+                   port_weight$weight = updateweight(port_weight$weight, input$p3, 3)
+                   resumeMany(observers)
+                 }
+    ),
+    observeEvent(input$p4,
+                 {
+                   suspendMany(observers)
+                   port_weight$weight = updateweight(port_weight$weight, input$p4, 4)
+                   resumeMany(observers)
+                 }
+    ),
+    observeEvent(input$p5,
+                 {
+                   suspendMany(observers)
+                   port_weight$weight = updateweight(port_weight$weight, input$p5, 5)
+                   resumeMany(observers)
+                 }
+    ),
+    observeEvent(input$p6,
+                 {
+                   suspendMany(observers)
+                   port_weight$weight = updateweight(port_weight$weight, input$p6, 6)
+                   resumeMany(observers)
+                 }
+    )
+  )
+  
+  # If the weights change, update the sliders
+  output$p1ui = renderUI({
+    wghtsliderInput("p1", port_weight$weight[1], label = rename_assets(assets0)[1]) #This function comes from shinyhelper.R
+  })
+  output$p2ui = renderUI({
+    wghtsliderInput("p2", port_weight$weight[2], label =  rename_assets(assets0)[2])
+  })
+  output$p3ui = renderUI({
+    wghtsliderInput("p3", port_weight$weight[3], label =  rename_assets(assets0)[3])
+  })
+  output$p4ui = renderUI({
+    wghtsliderInput("p4", port_weight$weight[4], label =  rename_assets(assets0)[4])
+  })
+  output$p5ui = renderUI({
+    wghtsliderInput("p5", port_weight$weight[5], label =  rename_assets(assets0)[5])
+  })
+  output$p6ui = renderUI({
+    wghtsliderInput("p6", port_weight$weight[6], label =  rename_assets(assets0)[6])
+  })
+  
+  
+  #Date slider
+  #If min date and max date are the same - reset the slider
+  observeEvent(input$date_range,{
+    if(input$date_range[1] == input$date_range[2]){
+      updateSliderTextInput(session,"date_range",selected = c(date_choices[1],date_choices[length(date_choices)]))
+    }
+  })
+  
+  
+  #Allocation pie chart
+  output$graph5 = renderPlotly({
+    
+    alloc = data.frame(wght = port_weight$weight, asset = rename_assets(assets0))
+    
+    
+    
+    g5 = plot_ly(alloc, labels = ~asset, values = ~wght, type = 'pie',
+                 textposition = 'inside',
+                 textinfo = 'label+percent',
+                 insidetextfont = list(color = '#000'),
+                 hoverinfo = 'text',
+                 text = ~paste(round(wght,4)*100, ' %'),
+                 marker = list(colors = my_colors,
+                               line = list(color = '#FFFFFF', width = 1)),
+                 showlegend = FALSE, width=250, height=250) %>%
+      layout(xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+             yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+             paper_bgcolor='rgba(0,0,0,0)',
+             plot_bgcolor='rgba(0,0,0,0)',
+             margin = list(b = 0, l = 0, t = 0))
+    
+    g5
+    
+  })
+  
+  #############################################
+  # Perform backtesting  
+  # Functions are in shiny_helper.R
+  #############################################
+  
+  # Backtest data
+  bt_data = reactive({
+    print("bt_data 1")
+    return(bt_port(dataset_kennzahlen(), as.Date(input$date_range[1]), as.Date(input$date_range[2]), port_weight$weight, input$rebalance))
+    
+    })
+  
+  # Optimal portfolio data
+  opt_weights = reactive({
+    #Calculate target risk and return
+    bt_df = bt_data()
+    target_ret = mean(bt_df$Portfolio) * 250
+    target_risk = sd(bt_df$Portfolio) * sqrt(250)
+    
+    #Extract dataframe for dates 
+    from = as.Date(input$date_range[1])
+    to = as.Date(input$date_range[2])
+    
+    df_tmp = df %>% rownames_to_column("date") %>%
+      filter(as.Date(date)>=from & as.Date(date) <= to) %>% column_to_rownames("date")
+    
+    # Calculate inputs for optimization
+    returns = xts(df_tmp, order.by = as.Date(row.names(df_tmp)))
+    mean_ret = apply(df_tmp, 2, mean) * 250
+    cov_matrix = cov(df_tmp) * 250
+    
+    #Find optimal weights
+    #opt_w_ret = findEfficientFrontier.Return(returns, target_ret)
+    opt_w_ret = findEfficientFrontier.ReturnALT(mean_ret, cov_matrix, target_ret)
+    
+    opt_w_risk = findEfficientFrontier.Risk(mean_ret, cov_matrix, target_risk)
+    
+    #Return a dataframe
+    opt_df = data.frame(OptRet = opt_w_ret, OptRisk = opt_w_risk)
+    
+    return (opt_df)
+    
+    
+  })
+  
+  
+  #Plot backtest compound return
+  output$graph6 = renderPlotly({
+    
+    input$go
+    
+    isolate({  ### To let weights settle
+      print("GRAPH 6")
+      bt_df = bt_data()
+      print("GRAPH 6.2")
+      print(bt_df)
+      
+      #Calculate compound return
+      bt_df = bt_df %>%
+        gather(key="Asset", value="Return", -date) %>%
+        group_by(Asset) %>%
+        arrange(date) %>%
+        mutate(cumRet = cumprod(1+Return) - 1) %>%
+        select(date, Asset, cumRet) %>%
+        spread(key=Asset, value=cumRet)
+      
+      #Plot
+      plot_ly(bt_df, x = ~date, y = ~Portfolio, type = "scatter", mode = "line", name = "Portfolio",
+              line = list(color = "Steelblue3", width = 2), width = 700, height = 400) %>%
+        add_trace(y= ~X.GSPC, name = "SP500",
+                  line = list(color = "black", width = 2)) %>%
+        add_trace(y= ~R60T10C30, name = "S&P500:60%, USGovBonds:30%, Gold:10%",
+                  line = list(color = "gray", width = 2)) %>%
+        layout(xaxis = list(title = "", showgrid = FALSE, zeroline = TRUE, showticklabels = TRUE),
+               yaxis = list(title = "", showgrid = TRUE, zeroline = TRUE, showticklabels = TRUE, tickformat = "%"),
+               
+               legend = list(orientation = "h", x = 0.1, y=1.2),
+               paper_bgcolor='rgba(0,0,0,0)',
+               plot_bgcolor='rgba(0,0,0,0)',
+               margin = list(b = 20, l = 20, t = 30))
+    })
+  })
+  
+  #Create backtest preformance stats
+  
+  output$bt_table1 = renderTable(digits =2, {
+    
+    input$go
+    
+    isolate({
+      #Select data
+      ret_df = bt_data()
+      print("ret_df")
+      ret_df = ret_df %>% rename(Mixed = R60T10C30) %>% rename(SP500 = X.GSPC) %>%
+        select(date, Portfolio, SP500, Mixed)
+      print("ret_df2")
+      print(rf)
+      
+      
+      rf_range = rf%>% filter(as.Date(date) >= as.Date(input$date_range[1]) & as.Date(date) <= as.Date(input$date_range[2]))
+      print("ret_df3")
+      
+      #Calculate performance measures
+      perf_df = data.frame(Messungen = c("Gewinn (jährlich), %","Risiko (jährlich), %","Sharpe","Sortino","Beta","Treynor"))
+      perf_df$Portfolio = unlist(calcPortMeasures(ret_df$Portfolio, ret_df$SP500, rf_range$rf))
+      perf_df$SP500 = unlist(calcPortMeasures(ret_df$SP500, ret_df$SP500, rf_range$rf))
+      perf_df$Mixed = unlist(calcPortMeasures(ret_df$Mixed, ret_df$SP500, rf_range$rf))
+      
+      print("ret_df4")
+      
+      perf_df[1:2, c("Portfolio","SP500","Mixed")] = round(perf_df[1:2, c("Portfolio","SP500","Mixed")] * 100, 2)
+      
+      return (perf_df)
+    })
   })
   
 }
