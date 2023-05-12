@@ -20,72 +20,14 @@ library(leaflet)
 library(geosphere)
 #devtools::install_github("gianndon/popSwissr", force=TRUE)
 #devtools::install_github("dppalomar/portfolioBacktest")
-
+source("Funktionen/calcportMeasures.R", local=TRUE)
+source("Funktionen/calcPortReturn.R", local=TRUE)
+source("Funktionen/wghtsliderInput.R", local=TRUE)
+source("Funktionen/bt_port.R", local=TRUE)
+source("Funktionen/updateweight.R", local=TRUE)
 
 #create risk free rate
 rf<- data.frame(date= seq(Sys.Date()-30*365, Sys.Date(), by="day"),rf=0.01)
-
-#Function that calculates portfolio performance measures
-
-calcPortMeasures = function (port_ret, benchmark, rf){
-  
-  mean_rf = 0 #mean(rf)
-  print("mean rf")
-  print(mean_rf)
-  mean_port_ret = mean(port_ret)
-  print("mean port ret")
-  print(mean_port_ret)
-  sd_port_ret = sd(port_ret)
-  print("sd port ret")
-  print(sd_port_ret)
-  
-  #Calculate Sharpe
-  sharpe = ((mean_port_ret - mean_rf) / sd_port_ret) * sqrt(250)
-  
-  #Calculate Beta
-  mod = lm(formula = port_ret~benchmark)
-  beta = summary(mod)$coefficients[2,1]
-  
-  #Calculate Sortino
-  sortino = SortinoRatio(port_ret) * sqrt(250)
-  
-  #Calculate Taylor
-  treynor = ((mean_port_ret - mean_rf)*250)*100/beta
-  
-  results = list("AvRet"=mean_port_ret * 250, "StDev" = sd_port_ret * sqrt(250),
-                 "Sharpe" = sharpe, "Sortino" = sortino[1], "Beta" = beta, "Treynor" = treynor)
-  
-  return (results)
-  
-}
-
-#Function that calculates portfolio returns
-calcPortReturn = function(df, from, to, wght, rebalance, geometric = TRUE){
-  
-  #Cut dataframe to reflect date range
-  df_range = df %>% rownames_to_column("date") %>%
-    filter(as.Date(date)>=from & as.Date(date) <= to) %>% column_to_rownames("date")
-  
-  df_range = xts(df_range, order.by = as.Date(row.names(df_range)))
-  indexClass(df_range) <- "Date"
-  
-  #Create repalace operator
-  reb_op = ifelse(rebalance=="Never", NA,
-                  ifelse(rebalance=="Annually", "years", 
-                         ifelse(rebalance=="Quarterly", "quarters",
-                                "months")))
-  
-  port_ret = Return.portfolio(df_range, weights = wght, geometric = geometric, rebalance_on = reb_op)
-  print("PORT RET")
-  print(port_ret)
-  
-  port_ret = data.frame(port_ret)
-  
-  colnames(port_ret) = c("RetPort")
-  
-  return (port_ret)
-  
-}
 
 
 # suspend and resume a list of observers
@@ -98,73 +40,7 @@ my_colors = brewer.pal(6, "Blues")
 date_choices = seq(as.Date("2000-01-01"),Sys.Date(), by="1 month")
 date_choices[length(date_choices)] = Sys.Date()
 
-# function to change sliderInput
-wghtsliderInput = function(inputId,value, label, submitted=FALSE) {
-  if (!submitted)
-    sliderInput(inputId=inputId,
-                value=value,
-                label=label,
-                min=0,
-                max=1,
-                ticks=FALSE)
-}
 
-
-### Function to perform backtesting
-
-bt_port = function(df, from, to, wght, rebalance){
-  
-  # Create a dataframe with portfolio and benchmark returns
-  print("1")
-  
-  df_tmp = df %>% mutate(date = as.Date(row.names(df)))
-  print("2")
-  
-  # Portfolio return
-  port_ret = data.frame(calcPortReturn(df, from, to, wght, rebalance))
-  print("3")
-  port_ret$date = as.Date(row.names(port_ret))
-  print("4")
-  port_ret = rename(port_ret, Portfolio = RetPort)
-  print("5")
-  # 60/30/10 Portfolio
-  sixty_port = data.frame(calcPortReturn(df, from, to,
-                                         wght = c(0, 0.6, 0.1, 0, 0, 0.3), rebalance))
-  print("6")
-  sixty_port$date = as.Date(row.names(sixty_port))
-  sixty_port = rename(sixty_port, R60T10C30 = RetPort)
-  print("7")
-  
-  # Merge into one df
-  port_ret = merge(port_ret, df_tmp[,c("X.GSPC","date")], by = "date", all.x = TRUE)
-  port_ret = merge(port_ret, sixty_port, by = "date", all.x = TRUE)
-  print("8")
-  
-  return(port_ret)
-}
-
-
-## Funcions to balance weight
-#Updates weights if changed
-
-updateweight = function(oldweight, new, i) {
-  if (new==oldweight[i]) {
-    oldweight
-  } else if (new==1){
-    newweight = rep(0,6)
-    oldweight = oldweight
-    new = 0.9999
-    newweight[-i] = oldweight[-i]/(sum(oldweight[-i]) + 1e-10)*(1-new)
-    newweight[i] = new
-    newweight
-  } else {
-    newweight = rep(0,6)
-    oldweight = oldweight
-    newweight[-i] = oldweight[-i]/(sum(oldweight[-i]) + 1e-10)*(1-new)
-    newweight[i] = new
-    newweight
-  }
-}
 
 #binds data columnwise and fills with NA
 cbind.fill <- function(...){
