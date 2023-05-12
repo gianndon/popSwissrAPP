@@ -241,7 +241,7 @@ ui <- function(request) {
                                                                 inline=TRUE,
                                                                 #multiple = TRUE,
                                    ), id="kursuebersicht_style"),
-                                   column(3,numericInput("rendite_amount", "Amount [CHF]", value = 20000)),
+                                   column(3,numericInput("rendite_amount", "Betrag [CHF]", value = 20000)),
                                    
                           
                                    column(6, 
@@ -282,7 +282,7 @@ ui <- function(request) {
                                                                 inline=TRUE,
                                                                 #multiple = TRUE,
                                    ), id="kursuebersicht_style"),
-                                   column(2,numericInput("mvp_amount", "Amount [CHF]", value = 20000)),
+                                   column(2,numericInput("mvp_amount", "Betrag [CHF]", value = 20000)),
                                    column(1,checkboxInput("shorting_mvp", "shorting", value = TRUE )),
                                    
                                    br(),
@@ -302,7 +302,7 @@ ui <- function(request) {
                                                                 #multiple = TRUE,
                                    ), id="kursuebersicht_style"),
                                   
-                                   column(3,numericInput("tp_amount", "Amount [CHF]", value = 20000)),
+                                   column(3,numericInput("tp_amount", "Betrag [CHF]", value = 20000)),
                                    
                                    br(),
                                    column(12, plotOutput("donut_tp", height= "65vh")),
