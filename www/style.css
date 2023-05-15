@@ -122,8 +122,14 @@ body > div > nav .nav.navbar-nav {
 /*navbar color on hover*/
 .navbar-default .navbar-nav>li>a {
    /* color: #CBB26a; */
-   color: #333;
+   color: #F7F1EF;
 }  
+
+.center-table{
+  align-content: "center";
+    margin-left: auto;
+  margin-right: auto;
+}
 
 /* font size navbar elements  */
 a {
@@ -180,7 +186,8 @@ a {
 
 #kursuebersicht_style{
   /*color:  #d8c690;*/
-  color: #090979;
+ /* color: #090979;*/
+ color: rgba(7, 7, 80, 1);
 }
 
 /* change text input field colors */
@@ -225,7 +232,10 @@ a {
 color: #be9e44 !important;
 
 /*background-color:#2d2d2d !important;*/
-  background-color: rgba(9,9,121,0.8) !important;
+  /*background-color: rgba(9,9,121,0.8) !important;*/
+  background-color: rgba(0, 47, 255, 0.4)!important;
+    border-radius: 0px 0px 10px 10px;
+}
 }
 
 
@@ -293,4 +303,8 @@ th{
 /* Betrag eingabe My Portfolio */
 .form-control {
     border-radius: 5px;
+}
+
+.navbar-static-top {
+    background-color: midnightblue;
 }
