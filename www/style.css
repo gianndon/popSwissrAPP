@@ -280,7 +280,8 @@ th{
 /* color of Rendite und Risiko Box */
 
 .alert-info, .bg-aqua, .callout.callout-info, .label-info, .modal-info .modal-body {
-    background-color: #73a7f5!important;
+    background-color: rgba(115,167, 245, 0.7)!important;
+    border-radius: 15px;
     
 }
 

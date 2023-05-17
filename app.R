@@ -51,7 +51,7 @@ resumeMany = function(observers) invisible(lapply(observers, function(x) x$resum
 #color palettes Kennzahlen
 my_colors = brewer.pal(6, "Blues")
 
-date_choices = seq(as.Date("2000-01-01"),Sys.Date(), by="1 month")
+date_choices = seq(as.Date("2014-09-01"),Sys.Date(), by="1 month")
 date_choices[length(date_choices)] = Sys.Date()
 
 
@@ -106,7 +106,7 @@ rename_assets <- function(asset){
   name
 }
 
-title <- tags$a(tags$img(src="Swisscon_logo1.png", height="45px", id="logo"))
+title <- tags$a(tags$img(src="Swisscon_echt.png", height="45px", id="logo"))
 
 #data up to 1970
 data_1970 <- convert_currencies(assets, Sys.Date()-30*365, Sys.Date())
@@ -352,9 +352,9 @@ ui <- function(request) {
                                    ),
                           tabPanel("Kennzahlen",
                                    h1("Kennzahlen"),
-                                   fluidRow(div(column(6, h4("Portfolio Allokation auswählen:", align = "center")),
-                                                column(3, h4("Neugewichtung auswählen:", align = "left")),
-                                                column(3, h4("Allokation", align = "center")))
+                                   fluidRow(div(column(6, h2("Portfolio Allokation auswählen:", align = "center")),
+                                                column(3, h2("Neugewichtung auswählen:", align = "left")),
+                                                column(3, h2("Allokation", align = "center")))
                                    ),
                                    fluidRow(column(3,
                                                    uiOutput("p1ui"),
@@ -378,13 +378,13 @@ ui <- function(request) {
                                                    div(plotlyOutput("graph5"), align = "center", style = "height:250px"))),
                                    fluidRow(column(12,
                                                    div(sliderTextInput(
-                                                     inputId = "date_range", label = h4("Zeitintervall:"), width = "80%",
+                                                     inputId = "date_range", label = h2("Zeitintervall:"), width = "80%",
                                                      choices = date_choices, selected = range(date_choices),
                                                      grid = TRUE, dragRange = FALSE
                                                    ), align = "center"))
                                    ),
-                                   fluidRow(column(6, h4("Gesamtrendite", align="center")),
-                                            column(6, h4("Performance Messungen", align="center"))),
+                                   fluidRow(column(6, h2("Gesamtrendite", align="center")),
+                                            column(6, h2("Performance Messungen", align="center"))),
                                    fluidRow(column(6, div(plotlyOutput("graph6"), align="center")),
                                             column(6, div(tableOutput("bt_table1"), align="center"))
                                    ),
@@ -1177,7 +1177,7 @@ tp <- function(assets, rf=0.01, p_year=260){
     print(is(y))
     
     y <- y[1:(length(y)-2)]
-    df <- data.frame(value=y*input$mvp_amount,
+    df <- data.frame(value=round(y*input$mvp_amount,2),
                            Anlage=rename_assets(colnames(dataset3())))
 
     # donut(df_donut)
