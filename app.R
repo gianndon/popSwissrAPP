@@ -1451,7 +1451,7 @@ tp <- function(assets, rf=0.01, p_year=260){
   output$MVP_OUTPUT <- renderTable({
     anteil <- mvp(dataset3())[]
     anteil <- anteil[1:(length(anteil)-2)]
-    a <- rbind(rename_assets(colnames(dataset3()))[],paste(percent(anteil)), paste(anteil*summe_portfolio, " CHF"))
+    a <- rbind(rename_assets(colnames(dataset3()))[],paste(percent(anteil)), paste(anteil*input$mvp_amount, " CHF"))
     colnames(a)<-a[1,]
     a<-a[-1, ]
     a
