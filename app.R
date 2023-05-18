@@ -224,16 +224,16 @@ ui <- function(request) {
                                    titlePanel("Kursübersicht "),
                                    #sidebarLayout(
                                      #sidebarPanel(
-                                       # selectInput("period", "Select period:",
-                                          #         choices = c("1 day", "1 week", "1 month", "1 year", "5 years", "10 years"))
+                                       # selectInput("period", "Zeitperiode:",
+                                          #         choices = c("1 Tag", "1 Woche", "1 Monat", "1 Jahr", "5 Jahre", "10 Jahre"))
                                        column(9, checkboxGroupInput("assets2", "Vermögenswerte auswählen:", choices = assets1, 
                                                              selected = assets1,
                                                              inline=TRUE,
                                                              #multiple = TRUE,
                                                              ), id="kursuebersicht_style"),
-                                       column(3,selectInput("period", "Select period:",
-                                                              choices = c("1 day", "1 week", "1 month", "1 year", "5 years", "10 years"), 
-                                                              selected = "1 month"), id="kursuebersicht_style"),
+                                       column(3,selectInput("period", "Zeitperiode:",
+                                                              choices = c("1 Tag", "1 Woche", "1 Monat", "1 Jahr", "5 Jahre", "10 Jahre"), 
+                                                              selected = "1 Monat"), id="kursuebersicht_style"),
                                        #plotOutput("stockPlot")
                                        
                                        plotOutput("smi_plot", click="click_kursuebersicht1"),
@@ -472,12 +472,12 @@ start_date_selector <- reactive({
   
   # Get start and end dates based on period
   start_date <- Sys.Date() - switch(period,
-                                    "1 day" = 1,
-                                    "1 week" = 7,
-                                    "1 month" = 30,
-                                    "1 year" = 365,
-                                    "5 years" = 5*365,
-                                    "10 years" = 10*365)
+                                    "1 Tag" = 1,
+                                    "1 Woche" = 7,
+                                    "1 Monat" = 30,
+                                    "1 Jahr" = 365,
+                                    "5 Jahre" = 5*365,
+                                    "10 Jahre" = 10*365)
   return(start_date)
 
   })
@@ -488,12 +488,12 @@ start_date_selector <- reactive({
     
     # Get start and end dates based on period
     start_date <- Sys.Date() - switch(period,
-                                      "1 day" = 1,
-                                      "1 week" = 7,
-                                      "1 month" = 30,
-                                      "1 year" = 365,
-                                      "5 years" = 5*365,
-                                      "10 years"=10*365)
+                                      "1 Tag" = 1,
+                                      "1 Woche" = 7,
+                                      "1 Monat" = 30,
+                                      "1 Jahr" = 365,
+                                      "5 Jahre" = 5*365,
+                                      "10 Jahre"=10*365)
     end_date <- Sys.Date()
     
     # Filter smi_data based on start and end dates
@@ -783,7 +783,7 @@ start_date_selector <- reactive({
     
     coulours <- brewer.pal(7, "Dark2")
     plot.xts(dataset2(), bg="transparent", col=coulours, col.lab="gold2", labels.col="navyblue", cex.axis=1.3 , lwd=3)
-    #addLegend("topleft", lty=1, lwd=2)
+    xts::addLegend(legend.loc = "topleft", legend.names= rename_assets(colnames(dataset2())), col=coulours, lty=1, lwd=3)
     
    
   }, bg="transparent"  )
