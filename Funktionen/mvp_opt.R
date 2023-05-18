@@ -1,7 +1,7 @@
 mvp_opt <- function(assets, shorting=TRUE, p_year=260){
   source("Funktionen/mvp.R", local=TRUE)
   
-  if(shorting=TRUE){
+  if(shorting==TRUE){
     mvp(assets, p_year=260)
   }
   else{
