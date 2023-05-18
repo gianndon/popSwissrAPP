@@ -1,4 +1,10 @@
 mvp_opt <- function(assets, shorting=TRUE, p_year=260){
+  source("Funktionen/mvp.R", local=TRUE)
+  
+  if(shorting=TRUE){
+    mvp(assets, p_year=260)
+  }
+  else{
   
   # import library
   library(nloptr)
@@ -21,13 +27,15 @@ mvp_opt <- function(assets, shorting=TRUE, p_year=260){
   }
 
   # lower and upper bounds, with distinction whether shorting is allowed or not
-  if(shorting == TRUE){
-    lb <- rep(-3, n)
-    ub <- rep(3, n)
-  }else{
-    lb <- rep(0, n)
-    ub <- rep(1, n)
-  }
+  # if(shorting == TRUE){
+  #   lb <- rep(-3, n)
+  #   ub <- rep(3, n)
+  # }else{
+  #   lb <- rep(0, n)
+  #   ub <- rep(1, n)
+  # }
+  lb <- rep(0, n)
+  ub <- rep(1, n)
   
   # initial value
   x0 <- rep(1/n, n)
@@ -57,5 +65,5 @@ mvp_opt <- function(assets, shorting=TRUE, p_year=260){
   
   # return
   return(c(weights_scal, abs(mvp_return), mvp_vola))
-  
+  }
 }
