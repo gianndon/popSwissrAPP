@@ -233,12 +233,17 @@ ui <- function(request) {
                                                              ), id="kursuebersicht_style"),
                                        column(3,selectInput("period", "Zeitperiode:",
                                                               choices = c("1 Tag", "1 Woche", "1 Monat", "1 Jahr", "5 Jahre", "10 Jahre"), 
-                                                              selected = "1 Monat"), id="kursuebersicht_style"),
+                                                              selected = "5 Jahre"), id="kursuebersicht_style"),
                                        #plotOutput("stockPlot")
                                        
                                        plotOutput("smi_plot", click="click_kursuebersicht1"),
                                        br(),
-                                       fluidRow(column(12,verbatimTextOutput("click_kursuebersicht2"))),
+                                   br(),
+                                   br(),
+                                   br(),
+                                   br(),
+                                       #fluidRow(verbatimTextOutput("click_kursuebersicht2")),
+                                        fluidRow(tableOutput("click_kursuebersicht3")),
                                        fluidRow()
                                         ),
                           tabPanel("Anleitung",
@@ -335,13 +340,13 @@ ui <- function(request) {
                                      #create input for portfolio with input field
                                      column(3,numericInput("smi2", "SMI Index [CHF]", value = 20000)),
                                      column(3,numericInput("ch_gov_bonds2", "CH-Staatsanleihen [CHF]", value = 2000)),
-                                     column(3,numericInput("gold2", "Gold [CHF]", value = 2000)),
-                                     column(3,numericInput("bitcoin2", "Bitcoin [CHF]", value = 18000)),
+                                     column(3,numericInput("gold2", "Gold [CHF]", value = 15000)),
+                                     column(3,numericInput("bitcoin2", "Bitcoin [CHF]", value = 5000)),
                                      column(3,numericInput("us_gov_bonds2", "US Staatsanleihen [CHF]", value = 5000)),
                                      column(3,numericInput("sp5002", "SP500 [CHF]", value = 1000)),
-                                     column(3,),
+                                     column(6,),
                                    column(12, plotOutput("boxplot_indiv", height= "65vh")),
-                                   actionButton("plotEfficient", "Übersicht des Investments auf der Kurve"),
+                                   column(12,actionButton("plotEfficient", "Übersicht des Investments auf der Kurve")),
                                    column(12, plotOutput("effeicient_indiv", height= "65vh")),
                                    
                                    fluidRow(valueBoxOutput("indiv_renditeBox"),
@@ -532,6 +537,29 @@ start_date_selector <- reactive({
     p
     #print(input$click_kursuebersicht1)
   })
+  #Tabelle Risiko
+  output$click_kursuebersicht3 <- renderTable({
+    if(is.null(input$click_kursuebersicht1)){
+      datum <- Sys.Date()
+      datum <- format(datum, "%Y-%m-%d")
+      
+    }
+    else{
+      click_pos <- input$click_kursuebersicht1
+      datum <- as.POSIXct(input$click_kursuebersicht1$x, origin = "1970-01-01", tz = "UTC")
+      datum <- format(datum, "%Y-%m-%d")
+    }
+    datum2 <- Sys.Date()
+    datum2 <- format(datum2, "%Y-%m-%d")
+    anteil <- c("Datum", rename_assets(colnames(dataset2())))
+    print(dataset2())
+    betrag <- c(datum, paste(round(dataset2()[,][datum],2), " CHF"))
+    betrag2 <- c(datum2, paste(round(dataset2()[,][datum2],2), " CHF"))
+    unsichtbar <- c(rep("", length(anteil)))
+    a <- rbind(unsichtbar, betrag, betrag2)
+    colnames(a) <- anteil
+    a
+  }, class="center-table")
   
   output$test <- renderDataTable(rownames(dataset1()))
   
@@ -782,7 +810,7 @@ start_date_selector <- reactive({
   output$smi_plot <- renderPlot({
     
     coulours <- brewer.pal(7, "Dark2")
-    plot.xts(dataset2(), bg="transparent", col=coulours, col.lab="gold2", labels.col="navyblue", cex.axis=1.3 , lwd=3)
+    plot.xts(dataset2(), bg="transparent", col=coulours, col.lab="gold2", labels.col="navyblue", cex.axis=1.3 , lwd=3, ylab = "")
     xts::addLegend(legend.loc = "topleft", legend.names= rename_assets(colnames(dataset2())), col=coulours, lty=1, lwd=3)
     
    
@@ -1066,9 +1094,9 @@ tp <- function(assets, rf=0.01, p_year=260){
          y=100*return_pf,
          type="l",
          col="red",
-         xlab="volatilities [%]",
-         ylab="returns [%]",
-         main="efficient frontier",
+         xlab="Risiko [%]",
+         ylab="Rendite [%]",
+         main="Effiziente Grenze",
          xlim=c(min(c(100*dat_cl$MVP_opt_short[nrow(dat_cl)],100*dat_cl$TP_normal_function_short[nrow(dat_cl)],100*dat_cl$individual[nrow(dat_cl)],100*dat_cl$TP_normal_function_short[nrow(dat_cl)] ))-5, 
                 5+max(c(100*dat_cl$MVP_opt_short[nrow(dat_cl)],100*dat_cl$TP_normal_function_short[nrow(dat_cl)],100*dat_cl$individual[nrow(dat_cl)],100*dat_cl$TP_normal_function_short[nrow(dat_cl)] ))),
          ylim=c(-5-min(c(100*dat_cl$MVP_opt_short[nrow(dat_cl)-1],100*dat_cl$TP_normal_function_short[nrow(dat_cl)-1],100*dat_cl$individual[nrow(dat_cl)-1],100*dat_cl$TP_normal_function_short[nrow(dat_cl)-1] )), 
